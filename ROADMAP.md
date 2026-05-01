@@ -46,90 +46,90 @@
 
 ---
 
-## Этап 1 — Чистая игровая модель
+## Этап 1 — Чистая игровая модель ✅
 
 **Цель:** реализовать ядро игровой логики без какой-либо графики. Всё покрыто тестами.
 
 ### 1.1 Структура модулей
 
-- [ ] Создать `src/core/mod.rs`
-- [ ] Создать подмодули: `map`, `hero`, `player`, `resources`, `town`, `commands`
-- [ ] Подключить `mod core;` в `main.rs`
+- [x] Создать `src/core/mod.rs`
+- [x] Создать подмодули: `map`, `hero`, `player`, `resources`, `town`, `commands`
+- [x] Подключить `mod core;` в `main.rs`
 
 ### 1.2 Карта и позиции (`core::map`)
 
-- [ ] Объявить `Position { x: i32, y: i32 }` с `PartialEq`, `Eq`, `Hash`, `Clone`, `Copy`, `Debug`
-- [ ] Объявить `TileKind`: `Ground`, `Obstacle`, `Water`
-- [ ] Объявить `Tile { kind: TileKind, object: Option<MapObject> }`
-- [ ] Объявить `MapObject`: `ResourcePile(ResourceBag)`, `Town(TownId)`, `NeutralArmy(Army)`
-- [ ] Объявить `AdventureMap { width, height, tiles: Vec<Tile> }`
-- [ ] Реализовать `AdventureMap::new(width, height)` — заполнить `Ground`-тайлами
-- [ ] Реализовать `AdventureMap::get(pos)` / `get_mut(pos)` — возврат `Option<&Tile>`
-- [ ] Реализовать `AdventureMap::is_passable(pos)` — проверка проходимости
-- [ ] Реализовать `AdventureMap::neighbors(pos)` — 4 соседних клетки (в пределах карты)
+- [x] Объявить `Position { x: i32, y: i32 }` с `PartialEq`, `Eq`, `Hash`, `Clone`, `Copy`, `Debug`
+- [x] Объявить `TileKind`: `Ground`, `Obstacle`, `Water`
+- [x] Объявить `Tile { kind: TileKind, object: Option<MapObject> }`
+- [x] Объявить `MapObject`: `ResourcePile(ResourceBag)`, `Town(TownId)`, `NeutralArmy(Army)`
+- [x] Объявить `AdventureMap { width, height, tiles: Vec<Tile> }`
+- [x] Реализовать `AdventureMap::new(width, height)` — заполнить `Ground`-тайлами
+- [x] Реализовать `AdventureMap::get(pos)` / `get_mut(pos)` — возврат `Option<&Tile>`
+- [x] Реализовать `AdventureMap::is_passable(pos)` — проверка проходимости
+- [x] Реализовать `AdventureMap::neighbors(pos)` — 4 соседних клетки (в пределах карты)
 
 ### 1.3 Ресурсы (`core::resources`)
 
-- [ ] Объявить `ResourceKind`: `Gold` (только этот на старте)
-- [ ] Объявить `ResourceBag { gold: u32 }`
-- [ ] Реализовать `ResourceBag::add(other: &ResourceBag)`
-- [ ] Реализовать `ResourceBag::subtract(other: &ResourceBag) -> Result<(), InsufficientFunds>`
-- [ ] Реализовать `ResourceBag::can_afford(cost: &ResourceBag) -> bool`
+- [x] Объявить `ResourceKind`: `Gold` (только этот на старте)
+- [x] Объявить `ResourceBag { gold: u32 }`
+- [x] Реализовать `ResourceBag::add(other: &ResourceBag)`
+- [x] Реализовать `ResourceBag::subtract(other: &ResourceBag) -> Result<(), InsufficientFunds>`
+- [x] Реализовать `ResourceBag::can_afford(cost: &ResourceBag) -> bool`
 
 ### 1.4 Существа и армия (`core::hero`)
 
-- [ ] Объявить `UnitType { name, damage_per_unit: u32, hp: u32, cost: ResourceBag }`
-- [ ] Объявить `UnitStack { unit_type: UnitType, count: u32, hp_remaining: u32 }`
-- [ ] Реализовать `UnitStack::is_alive() -> bool`
-- [ ] Объявить `Army(Vec<UnitStack>)` (до 7 слотов — как в оригинале)
-- [ ] Реализовать `Army::add_stack(stack: UnitStack)`
-- [ ] Реализовать `Army::is_empty() -> bool`
+- [x] Объявить `UnitType { name, damage_per_unit: u32, hp: u32, cost: ResourceBag }`
+- [x] Объявить `UnitStack { unit_type: UnitType, count: u32, hp_remaining: u32 }`
+- [x] Реализовать `UnitStack::is_alive() -> bool`
+- [x] Объявить `Army(Vec<UnitStack>)` (до 7 слотов — как в оригинале)
+- [x] Реализовать `Army::add_stack(stack: UnitStack)`
+- [x] Реализовать `Army::is_empty() -> bool`
 
 ### 1.5 Герой (`core::hero`)
 
-- [ ] Объявить `HeroId(u32)`
-- [ ] Объявить `Hero { id: HeroId, name: String, position: Position, army: Army, movement_points: u32, movement_points_max: u32 }`
-- [ ] Реализовать `Hero::can_move_to(pos, map) -> bool`
-- [ ] Реализовать `Hero::spend_movement(cost: u32) -> Result<(), NoMovement>`
-- [ ] Реализовать `Hero::restore_movement()`
+- [x] Объявить `HeroId(u32)`
+- [x] Объявить `Hero { id: HeroId, name: String, position: Position, army: Army, movement_points: u32, movement_points_max: u32 }`
+- [x] Реализовать `Hero::can_move_to(pos, map) -> bool`
+- [x] Реализовать `Hero::spend_movement(cost: u32) -> Result<(), NoMovement>`
+- [x] Реализовать `Hero::restore_movement()`
 
 ### 1.6 Игрок и состояние игры (`core::player`, `core::state`)
 
-- [ ] Объявить `PlayerId(u32)`
-- [ ] Объявить `Player { id: PlayerId, resources: ResourceBag, hero_ids: Vec<HeroId> }`
-- [ ] Объявить `TownId(u32)`
-- [ ] Объявить `Town { id: TownId, position: Position, garrison: Army, available_recruits: Vec<(UnitType, u32)> }`
-- [ ] Объявить `GameState { map, players, heroes, towns, current_day, active_player_id }`
+- [x] Объявить `PlayerId(u32)`
+- [x] Объявить `Player { id: PlayerId, resources: ResourceBag, hero_ids: Vec<HeroId> }`
+- [x] Объявить `TownId(u32)`
+- [x] Объявить `Town { id: TownId, position: Position, garrison: Army, available_recruits: Vec<(UnitType, u32)> }`
+- [x] Объявить `GameState { map, players, heroes, towns, current_day, active_player_id }`
 
 ### 1.7 Команды игрока (`core::commands`)
 
-- [ ] Объявить `GameCommand` enum:
+- [x] Объявить `GameCommand` enum:
   - `MoveHero { hero_id, target: Position }`
   - `CollectResource { hero_id }`
   - `RecruitUnits { town_id, unit_type_idx: usize, count: u32 }`
   - `EndTurn`
-- [ ] Объявить `CommandError` enum с вариантами для всех ошибок
-- [ ] Реализовать `GameState::apply(command) -> Result<Vec<GameEvent>, CommandError>`
-- [ ] Реализовать логику `MoveHero`:
+- [x] Объявить `CommandError` enum с вариантами для всех ошибок
+- [x] Реализовать `GameState::apply(command) -> Result<Vec<GameEvent>, CommandError>`
+- [x] Реализовать логику `MoveHero`:
   - проверить что герой принадлежит активному игроку
   - проверить что клетка проходима и смежна с текущей позицией
   - проверить наличие очков движения
   - переместить героя, списать очки движения
   - если на клетке объект — вернуть событие взаимодействия
-- [ ] Реализовать логику `CollectResource`:
+- [x] Реализовать логику `CollectResource`:
   - если на клетке героя есть `ResourcePile` — добавить ресурс игроку, убрать объект с карты
-- [ ] Реализовать логику `RecruitUnits`:
+- [x] Реализовать логику `RecruitUnits`:
   - проверить что герой находится в городе
   - проверить что существ достаточно в городе
   - списать золото, добавить стек в армию героя
-- [ ] Реализовать логику `EndTurn`:
+- [x] Реализовать логику `EndTurn`:
   - восстановить очки движения всех героев
   - начислить доход города
   - увеличить счётчик дня
 
 ### 1.8 События (`core::events`)
 
-- [ ] Объявить `GameEvent` enum:
+- [x] Объявить `GameEvent` enum:
   - `HeroMoved { hero_id, from: Position, to: Position }`
   - `ResourceCollected { hero_id, amount: ResourceBag }`
   - `BattleStarted { attacker: HeroId, defender_pos: Position }`
@@ -138,15 +138,15 @@
 
 ### 1.9 Unit-тесты (`core`)
 
-- [ ] Тест: герой движется на свободную клетку — успех
-- [ ] Тест: герой движется на препятствие — ошибка
-- [ ] Тест: герой движется без очков движения — ошибка
-- [ ] Тест: герой собирает ресурс с клетки — золото зачислено, объект удалён
-- [ ] Тест: герой пытается собрать с пустой клетки — ошибка
-- [ ] Тест: найм существ за достаточное золото — успех
-- [ ] Тест: найм существ при нехватке золота — ошибка
-- [ ] Тест: завершение хода восстанавливает очки движения
-- [ ] Тест: завершение хода начисляет доход города
+- [x] Тест: герой движется на свободную клетку — успех
+- [x] Тест: герой движется на препятствие — ошибка
+- [x] Тест: герой движется без очков движения — ошибка
+- [x] Тест: герой собирает ресурс с клетки — золото зачислено, объект удалён
+- [x] Тест: герой пытается собрать с пустой клетки — ошибка
+- [x] Тест: найм существ за достаточное золото — успех
+- [x] Тест: найм существ при нехватке золота — ошибка
+- [x] Тест: завершение хода восстанавливает очки движения
+- [x] Тест: завершение хода начисляет доход города
 
 **Критерий готовности:** `cargo test` проходит все тесты без запуска окна.
 

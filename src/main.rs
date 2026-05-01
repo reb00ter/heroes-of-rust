@@ -1,5 +1,7 @@
 #![warn(clippy::all, clippy::pedantic)]
 
+mod core;
+
 use bevy::prelude::*;
 
 fn main() {
