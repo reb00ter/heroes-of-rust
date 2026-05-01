@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::core::commands::{CommandError, GameCommand};
 use crate::core::hero::HeroId;
-use crate::core::map::Position;
+use crate::core::map::{MapObject, Position};
 
 use super::{GameStateResource, HoverHighlight, MAP_HEIGHT, MAP_WIDTH, world_to_grid};
 
@@ -133,6 +133,26 @@ pub fn update_hover_highlight(
 // Вспомогательные функции
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Завершение хода
+// ---------------------------------------------------------------------------
+
+/// Обрабатывает нажатие Space/Enter — завершение хода.
+#[allow(clippy::needless_pass_by_value)]
+pub fn handle_end_turn(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut game_state: ResMut<GameStateResource>,
+) {
+    if !keyboard.just_pressed(KeyCode::Space) && !keyboard.just_pressed(KeyCode::Enter) {
+        return;
+    }
+
+    let gs = &mut game_state.0;
+    if let Err(e) = gs.apply(GameCommand::EndTurn) {
+        warn!("[ADVENTURE] EndTurn command failed: {:?}", e);
+    }
+}
+
 fn get_active_hero_id(gs: &crate::core::state::GameState) -> Option<HeroId> {
     let player = gs.get_player(gs.active_player_id)?;
     player.hero_ids.first().copied()
@@ -147,7 +167,17 @@ fn apply_move(game_state: &mut ResMut<GameStateResource>, hero_id: HeroId, targe
 
     match gs.apply(GameCommand::MoveHero { hero_id, target }) {
         Ok(_events) => {
-            // Логирование выполняется внутри GameState::apply
+            // Автосбор ресурса, если герой вошёл на клетку с кучкой золота
+            if matches!(
+                gs.map.get(target).and_then(|t| t.object.as_ref()),
+                Some(MapObject::ResourcePile(_))
+            ) && let Err(e) = gs.apply(GameCommand::CollectResource { hero_id })
+            {
+                warn!(
+                    "[ADVENTURE] Auto-collect failed for hero \"{}\": {:?}",
+                    hero_name, e
+                );
+            }
         }
         Err(CommandError::NoMovementPoints) => {
             info!(

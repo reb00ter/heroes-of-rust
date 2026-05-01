@@ -51,6 +51,18 @@ pub struct HoverHighlight;
 #[derive(Component)]
 pub struct MovementPointsText;
 
+/// Маркер спрайта кучки ресурсов на карте приключений.
+#[derive(Component)]
+pub struct ResourcePileMarker(pub Position);
+
+/// Текстовая метка с количеством золота.
+#[derive(Component)]
+pub struct GoldText;
+
+/// Текстовая метка с текущим днём.
+#[derive(Component)]
+pub struct DayText;
+
 // ---------------------------------------------------------------------------
 // Вспомогательные функции конвертации координат
 // ---------------------------------------------------------------------------
@@ -101,10 +113,14 @@ impl Plugin for AdventurePlugin {
                 (
                     input::keyboard_input,
                     input::mouse_click_input,
+                    input::handle_end_turn,
                     input::update_hover_highlight,
                     sync::sync_hero_transform,
+                    sync::sync_resource_piles,
                     sync::update_available_moves,
                     sync::update_movement_ui,
+                    sync::update_resource_ui,
+                    sync::update_day_ui,
                 )
                     .chain(),
             );

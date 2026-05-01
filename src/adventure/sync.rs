@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 
+use crate::core::map::MapObject;
+
 use super::{
-    GameStateResource, HeroMarker, MovementHighlight, MovementPointsText, TILE_SIZE, grid_to_world,
+    DayText, GameStateResource, GoldText, HeroMarker, MovementHighlight, MovementPointsText,
+    ResourcePileMarker, TILE_SIZE, grid_to_world,
 };
 
 // ---------------------------------------------------------------------------
@@ -67,6 +70,33 @@ pub fn update_available_moves(
 }
 
 // ---------------------------------------------------------------------------
+// Синхронизация кучек ресурсов
+// ---------------------------------------------------------------------------
+
+/// Удаляет спрайты кучек, которые уже были собраны.
+#[allow(clippy::needless_pass_by_value)]
+pub fn sync_resource_piles(
+    mut commands: Commands,
+    game_state: Res<GameStateResource>,
+    piles_q: Query<(Entity, &ResourcePileMarker)>,
+) {
+    if !game_state.is_changed() {
+        return;
+    }
+
+    let gs = &game_state.0;
+    for (entity, marker) in &piles_q {
+        let has_pile = matches!(
+            gs.map.get(marker.0).and_then(|t| t.object.as_ref()),
+            Some(MapObject::ResourcePile(_))
+        );
+        if !has_pile {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Обновление UI очков движения
 // ---------------------------------------------------------------------------
 
@@ -89,6 +119,51 @@ pub fn update_movement_ui(
         "MP: {} / {}",
         hero.movement_points, hero.movement_points_max
     );
+
+    for mut text in &mut text_q {
+        (**text).clone_from(&new_text);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Обновление UI золота
+// ---------------------------------------------------------------------------
+
+/// Обновляет текст `"Золото: X"` при изменении `GameState`.
+#[allow(clippy::needless_pass_by_value)]
+pub fn update_resource_ui(
+    game_state: Res<GameStateResource>,
+    mut text_q: Query<&mut Text, With<GoldText>>,
+) {
+    if !game_state.is_changed() {
+        return;
+    }
+
+    let gs = &game_state.0;
+    let gold = gs.players.first().map_or(0, |p| p.resources.gold);
+    let new_text = format!("Золото: {gold}");
+
+    for mut text in &mut text_q {
+        (**text).clone_from(&new_text);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Обновление UI текущего дня
+// ---------------------------------------------------------------------------
+
+/// Обновляет текст `"День X"` при изменении `GameState`.
+#[allow(clippy::needless_pass_by_value)]
+pub fn update_day_ui(
+    game_state: Res<GameStateResource>,
+    mut text_q: Query<&mut Text, With<DayText>>,
+) {
+    if !game_state.is_changed() {
+        return;
+    }
+
+    let gs = &game_state.0;
+    let new_text = format!("День {}", gs.current_day);
 
     for mut text in &mut text_q {
         (**text).clone_from(&new_text);
