@@ -1,7 +1,9 @@
 #![warn(clippy::all, clippy::pedantic)]
 
+mod adventure;
 mod core;
 
+use adventure::AdventurePlugin;
 use bevy::prelude::*;
 
 fn main() {
@@ -15,5 +17,6 @@ fn main() {
             ..default()
         }))
         .insert_resource(ClearColor(Color::srgb(0.08, 0.08, 0.12)))
+        .add_plugins(AdventurePlugin)
         .run();
 }
