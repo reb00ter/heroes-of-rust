@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::core::hero::{Army, Hero, HeroId, UnitType};
+use crate::core::hero::{Army, Hero, HeroId, UnitStack, UnitType};
 use crate::core::map::{AdventureMap, MapObject, TileKind};
 use crate::core::player::{Player, PlayerId, Town, TownId};
 use crate::core::resources::ResourceBag;
@@ -8,8 +8,8 @@ use crate::core::state::GameState;
 
 use super::{
     ArmyText, DayText, GameStateResource, GoldText, HeroMarker, HoverHighlight, MAP_HEIGHT,
-    MAP_WIDTH, MovementPointsText, ResourcePileMarker, TILE_SIZE, TileMarker, TownMarker,
-    grid_to_world,
+    MAP_WIDTH, MovementPointsText, NeutralArmyMarker, ResourcePileMarker, TILE_SIZE, TileMarker,
+    TownMarker, grid_to_world,
 };
 
 // ---------------------------------------------------------------------------
@@ -106,6 +106,26 @@ pub fn build_initial_game_state() -> GameState {
     // Объект города на тайле карты
     if let Some(tile) = map.get_mut(crate::core::map::Position::new(12, 5)) {
         tile.object = Some(MapObject::Town(TownId(0)));
+    }
+
+    // Нейтральные отряды
+    let goblin = UnitType {
+        name: "Гоблин".to_string(),
+        damage_per_unit: 2,
+        hp: 5,
+        cost: ResourceBag::gold(0),
+    };
+    let orc = UnitType {
+        name: "Орк".to_string(),
+        damage_per_unit: 4,
+        hp: 10,
+        cost: ResourceBag::gold(0),
+    };
+    if let Some(tile) = map.get_mut(crate::core::map::Position::new(5, 3)) {
+        tile.object = Some(MapObject::NeutralArmy(Army(vec![UnitStack::new(goblin, 5)])));
+    }
+    if let Some(tile) = map.get_mut(crate::core::map::Position::new(10, 7)) {
+        tile.object = Some(MapObject::NeutralArmy(Army(vec![UnitStack::new(orc, 3)])));
     }
 
     // Герой
@@ -221,6 +241,29 @@ pub fn startup_setup(
             Transform::from_xyz(world.x, world.y, 1.0),
             TownMarker(town.id),
         ));
+    }
+
+    // --- Нейтральные отряды (Z=1) ---
+    #[allow(clippy::cast_possible_wrap)]
+    for y in 0..MAP_HEIGHT {
+        for x in 0..MAP_WIDTH {
+            let pos = crate::core::map::Position::new(x as i32, y as i32);
+            if matches!(
+                gs.map.get(pos).and_then(|t| t.object.as_ref()),
+                Some(MapObject::NeutralArmy(_))
+            ) {
+                let world = grid_to_world(pos);
+                commands.spawn((
+                    Sprite {
+                        color: Color::srgb(0.85, 0.15, 0.15),
+                        custom_size: Some(Vec2::splat(TILE_SIZE * 0.75)),
+                        ..default()
+                    },
+                    Transform::from_xyz(world.x, world.y, 1.0),
+                    NeutralArmyMarker(pos),
+                ));
+            }
+        }
     }
 
     // --- Герой (Z=4) ---
@@ -342,4 +385,50 @@ fn spawn_ui(commands: &mut Commands, gs: &crate::core::state::GameState, font: H
             ..default()
         },
     ));
+}
+
+// ---------------------------------------------------------------------------
+// Тесты
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::map::Position;
+
+    #[test]
+    fn neutral_armies_placed() {
+        let gs = build_initial_game_state();
+
+        let goblin_tile = gs.map.get(Position::new(5, 3)).expect("tile (5,3) exists");
+        match goblin_tile.object.as_ref().expect("object on (5,3)") {
+            MapObject::NeutralArmy(army) => {
+                assert_eq!(army.0.len(), 1);
+                assert_eq!(army.0[0].count, 5);
+                assert_eq!(army.0[0].unit_type.name, "Гоблин");
+                assert_eq!(army.0[0].unit_type.damage_per_unit, 2);
+                assert_eq!(army.0[0].unit_type.hp, 5);
+            }
+            other => panic!("expected NeutralArmy at (5,3), got {other:?}"),
+        }
+
+        let orc_tile = gs.map.get(Position::new(10, 7)).expect("tile (10,7) exists");
+        match orc_tile.object.as_ref().expect("object on (10,7)") {
+            MapObject::NeutralArmy(army) => {
+                assert_eq!(army.0.len(), 1);
+                assert_eq!(army.0[0].count, 3);
+                assert_eq!(army.0[0].unit_type.name, "Орк");
+                assert_eq!(army.0[0].unit_type.damage_per_unit, 4);
+                assert_eq!(army.0[0].unit_type.hp, 10);
+            }
+            other => panic!("expected NeutralArmy at (10,7), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn neutral_army_blocks_movement() {
+        let gs = build_initial_game_state();
+        assert!(!gs.map.is_passable(Position::new(5, 3)));
+        assert!(!gs.map.is_passable(Position::new(10, 7)));
+    }
 }

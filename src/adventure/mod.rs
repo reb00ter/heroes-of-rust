@@ -61,6 +61,10 @@ pub struct ResourcePileMarker(pub Position);
 #[derive(Component)]
 pub struct TownMarker(#[allow(dead_code)] pub TownId);
 
+/// Маркер спрайта нейтрального отряда на карте приключений.
+#[derive(Component)]
+pub struct NeutralArmyMarker(#[allow(dead_code)] pub Position);
+
 /// Текстовая метка армии героя на карте приключений.
 #[derive(Component)]
 pub struct ArmyText;
