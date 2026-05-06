@@ -130,19 +130,38 @@ impl GameState {
             return Err(CommandError::NotAdjacent);
         }
 
-        // 4. Клетка проходима
+        // 4. Если на клетке нейтральная армия — начать бой (без перемещения)
+        if matches!(
+            self.map.get(target).and_then(|t| t.object.as_ref()),
+            Some(MapObject::NeutralArmy(_))
+        ) {
+            let hero = self.get_hero(hero_id).ok_or(CommandError::HeroNotFound)?;
+            if hero.movement_points == 0 {
+                return Err(CommandError::NoMovementPoints);
+            }
+            info!(
+                "[ADVENTURE] Hero \"{}\" initiates battle at ({},{}).",
+                hero.name, target.x, target.y
+            );
+            return Ok(vec![GameEvent::BattleStarted {
+                attacker: hero_id,
+                defender_pos: target,
+            }]);
+        }
+
+        // 5. Клетка проходима
         if !self.map.is_passable(target) {
             return Err(CommandError::TileNotPassable);
         }
 
-        // 5. Есть очки движения
+        // 6. Есть очки движения
         let hero = self.get_hero(hero_id).ok_or(CommandError::HeroNotFound)?;
         if hero.movement_points == 0 {
             return Err(CommandError::NoMovementPoints);
         }
         let mp_before = hero.movement_points;
 
-        // 6. Переместить
+        // 7. Переместить
         let hero = self
             .get_hero_mut(hero_id)
             .ok_or(CommandError::HeroNotFound)?;
@@ -156,24 +175,11 @@ impl GameState {
             hero_name, from.x, from.y, target.x, target.y, mp_before, mp_after
         );
 
-        let mut events = vec![GameEvent::HeroMoved {
+        Ok(vec![GameEvent::HeroMoved {
             hero_id,
             from,
             to: target,
-        }];
-
-        // 7. Если на клетке нейтральная армия — начать бой
-        if matches!(
-            self.map.get(target).and_then(|t| t.object.as_ref()),
-            Some(MapObject::NeutralArmy(_))
-        ) {
-            events.push(GameEvent::BattleStarted {
-                attacker: hero_id,
-                defender_pos: target,
-            });
-        }
-
-        Ok(events)
+        }])
     }
 
     // -----------------------------------------------------------------------
@@ -622,5 +628,31 @@ mod tests {
         let gold_after = state.get_player(PlayerId(1)).unwrap().resources.gold;
 
         assert_eq!(gold_after - gold_before, 250);
+    }
+
+    // 12. Герой рядом с нейтральной армией — генерируется BattleStarted, позиция не меняется
+    #[test]
+    fn move_into_neutral_army_triggers_battle() {
+        use crate::core::hero::UnitStack;
+        let mut state = make_test_state();
+        let goblin = make_unit_type();
+        state
+            .map
+            .get_mut(Position::new(0, 0))
+            .unwrap()
+            .object = Some(MapObject::NeutralArmy(Army(vec![UnitStack::new(goblin, 3)])));
+
+        let result = state.apply(GameCommand::MoveHero {
+            hero_id: HeroId(1),
+            target: Position::new(0, 0),
+        });
+
+        let events = result.expect("command should succeed");
+        assert!(events.contains(&GameEvent::BattleStarted {
+            attacker: HeroId(1),
+            defender_pos: Position::new(0, 0),
+        }));
+        // Герой остался на месте
+        assert_eq!(state.get_hero(HeroId(1)).unwrap().position, Position::new(1, 0));
     }
 }

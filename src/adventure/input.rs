@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 
-use crate::core::commands::{CommandError, GameCommand};
-use crate::core::hero::HeroId;
+use crate::core::commands::{CommandError, GameCommand, GameEvent};
+use crate::core::hero::{Army, HeroId};
 use crate::core::map::{MapObject, Position};
 use crate::core::player::TownId;
+use crate::{PendingBattle};
 
 use super::{GameStateResource, HoverHighlight, MAP_HEIGHT, MAP_WIDTH, world_to_grid};
 
@@ -47,9 +48,16 @@ pub fn keyboard_input(
     let Some((dx, dy)) = delta else { return };
 
     let target = Position::new(hero_pos.x + dx, hero_pos.y + dy);
-    if let Some(town_id) = apply_move(&mut game_state, hero_id, target) {
-        commands.insert_resource(crate::town::CurrentTownId(town_id));
-        next_state.set(crate::GameScreen::Town);
+    match apply_move(&mut game_state, hero_id, target) {
+        MoveOutcome::Town(town_id) => {
+            commands.insert_resource(crate::town::CurrentTownId(town_id));
+            next_state.set(crate::GameScreen::Town);
+        }
+        MoveOutcome::Battle(pending) => {
+            commands.insert_resource(pending);
+            next_state.set(crate::GameScreen::Battle);
+        }
+        MoveOutcome::None => {}
     }
 }
 
@@ -97,9 +105,16 @@ pub fn mouse_click_input(
         return;
     };
 
-    if let Some(town_id) = apply_move(&mut game_state, hero_id, grid_pos) {
-        commands.insert_resource(crate::town::CurrentTownId(town_id));
-        next_state.set(crate::GameScreen::Town);
+    match apply_move(&mut game_state, hero_id, grid_pos) {
+        MoveOutcome::Town(town_id) => {
+            commands.insert_resource(crate::town::CurrentTownId(town_id));
+            next_state.set(crate::GameScreen::Town);
+        }
+        MoveOutcome::Battle(pending) => {
+            commands.insert_resource(pending);
+            next_state.set(crate::GameScreen::Battle);
+        }
+        MoveOutcome::None => {}
     }
 }
 
@@ -169,11 +184,17 @@ fn get_active_hero_id(gs: &crate::core::state::GameState) -> Option<HeroId> {
     player.hero_ids.first().copied()
 }
 
+enum MoveOutcome {
+    Town(TownId),
+    Battle(PendingBattle),
+    None,
+}
+
 fn apply_move(
     game_state: &mut ResMut<GameStateResource>,
     hero_id: HeroId,
     target: Position,
-) -> Option<TownId> {
+) -> MoveOutcome {
     let gs = &mut game_state.0;
     let hero_name = gs
         .get_hero(hero_id)
@@ -181,60 +202,71 @@ fn apply_move(
         .unwrap_or_default();
 
     match gs.apply(GameCommand::MoveHero { hero_id, target }) {
-        Ok(_events) => {
-            // Проверяем: вошёл ли герой в город?
-            let entered_town = gs
-                .map
-                .get(target)
-                .and_then(|t| t.object.as_ref())
-                .and_then(|obj| {
-                    if let MapObject::Town(id) = obj {
-                        Some(*id)
-                    } else {
-                        None
-                    }
-                });
-            if entered_town.is_some() {
-                return entered_town;
+        Ok(events) => {
+            // Бой?
+            for event in &events {
+                if let GameEvent::BattleStarted { attacker, defender_pos } = event {
+                    let army = gs
+                        .map
+                        .get(*defender_pos)
+                        .and_then(|t| t.object.as_ref())
+                        .and_then(|obj| {
+                            if let MapObject::NeutralArmy(a) = obj {
+                                Some(a.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or_else(Army::new);
+                    return MoveOutcome::Battle(PendingBattle {
+                        attacker_hero_id: *attacker,
+                        defender_army: army,
+                        defender_pos: *defender_pos,
+                    });
+                }
             }
 
-            // Автосбор ресурса, если герой вошёл на клетку с кучкой золота
+            // Вошёл ли герой в город?
+            if let Some(MapObject::Town(id)) = gs.map.get(target).and_then(|t| t.object.as_ref())
+            {
+                return MoveOutcome::Town(*id);
+            }
+
+            // Автосбор ресурса
             if matches!(
                 gs.map.get(target).and_then(|t| t.object.as_ref()),
                 Some(MapObject::ResourcePile(_))
-            ) && let Err(e) = gs.apply(GameCommand::CollectResource { hero_id })
-            {
-                warn!(
-                    "[ADVENTURE] Auto-collect failed for hero \"{}\": {:?}",
-                    hero_name, e
-                );
+            ) {
+                if let Err(e) = gs.apply(GameCommand::CollectResource { hero_id }) {
+                    warn!(
+                        "[ADVENTURE] Auto-collect failed for hero \"{}\": {:?}",
+                        hero_name, e
+                    );
+                }
             }
-            None
+            MoveOutcome::None
         }
         Err(CommandError::NoMovementPoints) => {
             info!(
                 "[ADVENTURE] Hero \"{}\" has no movement points left.",
                 hero_name
             );
-            None
+            MoveOutcome::None
         }
-        Err(CommandError::NotAdjacent) => {
-            // Тихо игнорируем — клик на далёкую клетку
-            None
-        }
+        Err(CommandError::NotAdjacent) => MoveOutcome::None,
         Err(CommandError::TileNotPassable) => {
             info!(
                 "[ADVENTURE] Hero \"{}\" cannot move there — tile is not passable.",
                 hero_name
             );
-            None
+            MoveOutcome::None
         }
         Err(e) => {
             warn!(
                 "[ADVENTURE] Move command failed for hero \"{}\": {:?}",
                 hero_name, e
             );
-            None
+            MoveOutcome::None
         }
     }
 }
