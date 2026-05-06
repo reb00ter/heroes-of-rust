@@ -44,6 +44,7 @@ fn setup_battle(
     mut commands: Commands,
     pending: Res<PendingBattle>,
     game_state: Res<GameStateResource>,
+    mut next_state: ResMut<NextState<crate::GameScreen>>,
 ) {
     let gs = &game_state.0;
 
@@ -51,6 +52,13 @@ fn setup_battle(
         .get_hero(pending.attacker_hero_id)
         .map(|h| h.army.0.as_slice())
         .unwrap_or(&[]);
+
+    if attacker_stacks.is_empty() {
+        warn!("[BATTLE] Attacker has no army — immediate defeat.");
+        commands.insert_resource(BattleResult { winner: Side::Defender });
+        next_state.set(crate::GameScreen::Adventure);
+        return;
+    }
 
     let battle_state = BattleState::from_armies(attacker_stacks, &pending.defender_army.0);
 

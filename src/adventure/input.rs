@@ -206,6 +206,18 @@ fn apply_move(
             // Бой?
             for event in &events {
                 if let GameEvent::BattleStarted { attacker, defender_pos } = event {
+                    // Не начинать бой без армии — герой должен сначала нанять войска
+                    let army_empty = gs
+                        .get_hero(*attacker)
+                        .map_or(true, |h| h.army.is_empty());
+                    if army_empty {
+                        info!(
+                            "[ADVENTURE] Hero has no army — cannot attack neutral stack at ({},{}).",
+                            defender_pos.x, defender_pos.y
+                        );
+                        return MoveOutcome::None;
+                    }
+
                     let army = gs
                         .map
                         .get(*defender_pos)
