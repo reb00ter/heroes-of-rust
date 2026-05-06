@@ -2,9 +2,19 @@
 
 mod adventure;
 mod core;
+mod town;
 
 use adventure::AdventurePlugin;
 use bevy::prelude::*;
+use town::TownPlugin;
+
+/// Экран игры — переключается при входе в город и выходе из него.
+#[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub enum GameScreen {
+    #[default]
+    Adventure,
+    Town,
+}
 
 fn main() {
     App::new()
@@ -17,6 +27,8 @@ fn main() {
             ..default()
         }))
         .insert_resource(ClearColor(Color::srgb(0.08, 0.08, 0.12)))
+        .init_state::<GameScreen>()
         .add_plugins(AdventurePlugin)
+        .add_plugins(TownPlugin)
         .run();
 }

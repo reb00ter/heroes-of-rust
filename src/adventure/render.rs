@@ -1,14 +1,15 @@
 use bevy::prelude::*;
 
-use crate::core::hero::{Army, Hero, HeroId};
+use crate::core::hero::{Army, Hero, HeroId, UnitType};
 use crate::core::map::{AdventureMap, MapObject, TileKind};
 use crate::core::player::{Player, PlayerId, Town, TownId};
 use crate::core::resources::ResourceBag;
 use crate::core::state::GameState;
 
 use super::{
-    DayText, GameStateResource, GoldText, HeroMarker, HoverHighlight, MAP_HEIGHT, MAP_WIDTH,
-    MovementPointsText, ResourcePileMarker, TILE_SIZE, TileMarker, grid_to_world,
+    ArmyText, DayText, GameStateResource, GoldText, HeroMarker, HoverHighlight, MAP_HEIGHT,
+    MAP_WIDTH, MovementPointsText, ResourcePileMarker, TILE_SIZE, TileMarker, TownMarker,
+    grid_to_world,
 };
 
 // ---------------------------------------------------------------------------
@@ -79,12 +80,33 @@ pub fn build_initial_game_state() -> GameState {
         }
     }
 
-    // Город (без специального объекта пока, просто позиция для следующих этапов)
-    let town = Town::new(
+    // Типы существ для найма
+    let peasant = UnitType {
+        name: "Крестьянин".to_string(),
+        damage_per_unit: 1,
+        hp: 5,
+        cost: ResourceBag::gold(25),
+    };
+    let swordsman = UnitType {
+        name: "Мечник".to_string(),
+        damage_per_unit: 3,
+        hp: 10,
+        cost: ResourceBag::gold(75),
+    };
+
+    // Город с доступными для найма существами
+    let mut town = Town::new(
         TownId(0),
         crate::core::map::Position::new(12, 5),
         ResourceBag::gold(250),
     );
+    town.available_recruits = vec![(peasant, 10), (swordsman, 5)];
+    town.daily_growth = vec![5, 2];
+
+    // Объект города на тайле карты
+    if let Some(tile) = map.get_mut(crate::core::map::Position::new(12, 5)) {
+        tile.object = Some(MapObject::Town(TownId(0)));
+    }
 
     // Герой
     let hero = Hero {
@@ -187,6 +209,20 @@ pub fn startup_setup(
         }
     }
 
+    // --- Города (Z=1) ---
+    for town in &gs.towns {
+        let world = grid_to_world(town.position);
+        commands.spawn((
+            Sprite {
+                color: Color::srgb(0.55, 0.40, 0.80),
+                custom_size: Some(Vec2::splat(TILE_SIZE * 0.8)),
+                ..default()
+            },
+            Transform::from_xyz(world.x, world.y, 1.0),
+            TownMarker(town.id),
+        ));
+    }
+
     // --- Герой (Z=4) ---
     if let Some(hero) = gs.heroes.first() {
         let world = grid_to_world(hero.position);
@@ -239,6 +275,24 @@ fn spawn_ui(commands: &mut Commands, gs: &crate::core::state::GameState, font: H
     ));
 
     let gold = gs.players.first().map_or(0, |p| p.resources.gold);
+
+    commands.spawn((
+        Text::new("Армия: (пусто)"),
+        TextFont {
+            font: font.clone(),
+            font_size: 22.0,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(12.0),
+            top: Val::Px(68.0),
+            ..default()
+        },
+        ArmyText,
+    ));
+
     commands.spawn((
         Text::new(format!("Золото: {gold}")),
         TextFont {

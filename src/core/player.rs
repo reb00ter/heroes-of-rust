@@ -27,6 +27,8 @@ pub struct Town {
     pub available_recruits: Vec<(UnitType, u32)>,
     /// Доход, начисляемый активному игроку в начале каждого дня
     pub income: ResourceBag,
+    /// Суточный прирост для каждого слота `available_recruits`
+    pub daily_growth: Vec<u32>,
 }
 
 impl Town {
@@ -38,6 +40,7 @@ impl Town {
             garrison: Army::new(),
             available_recruits: Vec::new(),
             income,
+            daily_growth: Vec::new(),
         }
     }
 }

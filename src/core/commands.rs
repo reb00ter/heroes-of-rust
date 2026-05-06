@@ -345,7 +345,21 @@ impl GameState {
             });
         }
 
-        // 3. Следующий день
+        // 3. Пополнение доступных существ в городах
+        let mut growth_log: Vec<String> = Vec::new();
+        for town in &mut self.towns {
+            for (i, &growth) in town.daily_growth.iter().enumerate() {
+                if let Some(slot) = town.available_recruits.get_mut(i) {
+                    slot.1 += growth;
+                    growth_log.push(format!("+{} {}", growth, slot.0.name));
+                }
+            }
+        }
+        if !growth_log.is_empty() {
+            info!("[TOWN] Daily growth: {}", growth_log.join(", "));
+        }
+
+        // 4. Следующий день
         self.current_day += 1;
 
         let income_total: u32 = town_incomes.iter().map(|b| b.gold).sum();
@@ -490,6 +504,7 @@ mod tests {
             garrison: Army::new(),
             available_recruits: vec![(make_unit_type(), 10)],
             income: ResourceBag::default(),
+            daily_growth: vec![],
         };
         state.towns.push(town);
 
@@ -522,6 +537,7 @@ mod tests {
             garrison: Army::new(),
             available_recruits: vec![(make_unit_type(), 10)],
             income: ResourceBag::default(),
+            daily_growth: vec![],
         };
         state.towns.push(town);
 
@@ -545,6 +561,48 @@ mod tests {
         assert_eq!(hero.movement_points, hero.movement_points_max);
     }
 
+    // 10. Герой не в городе — NotInTown
+    #[test]
+    fn recruit_units_hero_not_in_town() {
+        let mut state = make_test_state();
+        let town = Town {
+            id: TownId(1),
+            position: Position::new(5, 5), // герой стоит на (1,0)
+            garrison: Army::new(),
+            available_recruits: vec![(make_unit_type(), 10)],
+            income: ResourceBag::default(),
+            daily_growth: vec![],
+        };
+        state.towns.push(town);
+
+        let result = state.apply(GameCommand::RecruitUnits {
+            town_id: TownId(1),
+            unit_type_idx: 0,
+            count: 1,
+        });
+        assert_eq!(result, Err(CommandError::NotInTown));
+    }
+
+    // 11. EndTurn пополняет available_recruits
+    #[test]
+    fn end_turn_replenishes_recruits() {
+        let mut state = make_test_state();
+        let town = Town {
+            id: TownId(1),
+            position: Position::new(5, 5),
+            garrison: Army::new(),
+            available_recruits: vec![(make_unit_type(), 3)],
+            income: ResourceBag::default(),
+            daily_growth: vec![5],
+        };
+        state.towns.push(town);
+
+        state.apply(GameCommand::EndTurn).unwrap();
+
+        let town = state.towns.iter().find(|t| t.id == TownId(1)).unwrap();
+        assert_eq!(town.available_recruits[0].1, 8); // 3 + 5
+    }
+
     // 9. EndTurn начисляет доход города
     #[test]
     fn end_turn_grants_income() {
@@ -555,6 +613,7 @@ mod tests {
             garrison: Army::new(),
             available_recruits: vec![],
             income: ResourceBag::gold(250),
+            daily_growth: vec![],
         };
         state.towns.push(town);
 

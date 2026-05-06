@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use crate::core::map::MapObject;
 
 use super::{
-    DayText, GameStateResource, GoldText, HeroMarker, MovementHighlight, MovementPointsText,
-    ResourcePileMarker, TILE_SIZE, grid_to_world,
+    ArmyText, DayText, GameStateResource, GoldText, HeroMarker, MovementHighlight,
+    MovementPointsText, ResourcePileMarker, TILE_SIZE, grid_to_world,
 };
 
 // ---------------------------------------------------------------------------
@@ -151,6 +151,41 @@ pub fn update_resource_ui(
 // ---------------------------------------------------------------------------
 // Обновление UI текущего дня
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Обновление UI армии
+// ---------------------------------------------------------------------------
+
+/// Обновляет строку `"Армия: …"` при изменении `GameState`.
+#[allow(clippy::needless_pass_by_value)]
+pub fn update_army_ui(
+    game_state: Res<GameStateResource>,
+    mut text_q: Query<&mut Text, With<ArmyText>>,
+) {
+    if !game_state.is_changed() {
+        return;
+    }
+    let gs = &game_state.0;
+    let new_text = gs.heroes.first().map_or_else(
+        || "Армия: (пусто)".to_string(),
+        |hero| {
+            if hero.army.0.is_empty() {
+                "Армия: (пусто)".to_string()
+            } else {
+                let parts: Vec<String> = hero
+                    .army
+                    .0
+                    .iter()
+                    .map(|s| format!("{} ×{}", s.unit_type.name, s.count))
+                    .collect();
+                format!("Армия: {}", parts.join(", "))
+            }
+        },
+    );
+    for mut text in &mut text_q {
+        (**text).clone_from(&new_text);
+    }
+}
 
 /// Обновляет текст `"День X"` при изменении `GameState`.
 #[allow(clippy::needless_pass_by_value)]

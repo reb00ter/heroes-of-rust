@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::core::commands::{CommandError, GameCommand};
 use crate::core::hero::HeroId;
 use crate::core::map::{MapObject, Position};
+use crate::core::player::TownId;
 
 use super::{GameStateResource, HoverHighlight, MAP_HEIGHT, MAP_WIDTH, world_to_grid};
 
@@ -19,6 +20,8 @@ const MAP_H: i32 = MAP_HEIGHT.cast_signed();
 pub fn keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut game_state: ResMut<GameStateResource>,
+    mut next_state: ResMut<NextState<crate::GameScreen>>,
+    mut commands: Commands,
 ) {
     let gs = &game_state.0;
 
@@ -44,7 +47,10 @@ pub fn keyboard_input(
     let Some((dx, dy)) = delta else { return };
 
     let target = Position::new(hero_pos.x + dx, hero_pos.y + dy);
-    apply_move(&mut game_state, hero_id, target);
+    if let Some(town_id) = apply_move(&mut game_state, hero_id, target) {
+        commands.insert_resource(crate::town::CurrentTownId(town_id));
+        next_state.set(crate::GameScreen::Town);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -58,6 +64,8 @@ pub fn mouse_click_input(
     windows: Query<&Window>,
     camera_q: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
     mut game_state: ResMut<GameStateResource>,
+    mut next_state: ResMut<NextState<crate::GameScreen>>,
+    mut commands: Commands,
 ) {
     if !mouse_button.just_pressed(MouseButton::Left) {
         return;
@@ -89,7 +97,10 @@ pub fn mouse_click_input(
         return;
     };
 
-    apply_move(&mut game_state, hero_id, grid_pos);
+    if let Some(town_id) = apply_move(&mut game_state, hero_id, grid_pos) {
+        commands.insert_resource(crate::town::CurrentTownId(town_id));
+        next_state.set(crate::GameScreen::Town);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -158,7 +169,11 @@ fn get_active_hero_id(gs: &crate::core::state::GameState) -> Option<HeroId> {
     player.hero_ids.first().copied()
 }
 
-fn apply_move(game_state: &mut ResMut<GameStateResource>, hero_id: HeroId, target: Position) {
+fn apply_move(
+    game_state: &mut ResMut<GameStateResource>,
+    hero_id: HeroId,
+    target: Position,
+) -> Option<TownId> {
     let gs = &mut game_state.0;
     let hero_name = gs
         .get_hero(hero_id)
@@ -167,6 +182,22 @@ fn apply_move(game_state: &mut ResMut<GameStateResource>, hero_id: HeroId, targe
 
     match gs.apply(GameCommand::MoveHero { hero_id, target }) {
         Ok(_events) => {
+            // Проверяем: вошёл ли герой в город?
+            let entered_town = gs
+                .map
+                .get(target)
+                .and_then(|t| t.object.as_ref())
+                .and_then(|obj| {
+                    if let MapObject::Town(id) = obj {
+                        Some(*id)
+                    } else {
+                        None
+                    }
+                });
+            if entered_town.is_some() {
+                return entered_town;
+            }
+
             // Автосбор ресурса, если герой вошёл на клетку с кучкой золота
             if matches!(
                 gs.map.get(target).and_then(|t| t.object.as_ref()),
@@ -178,27 +209,32 @@ fn apply_move(game_state: &mut ResMut<GameStateResource>, hero_id: HeroId, targe
                     hero_name, e
                 );
             }
+            None
         }
         Err(CommandError::NoMovementPoints) => {
             info!(
                 "[ADVENTURE] Hero \"{}\" has no movement points left.",
                 hero_name
             );
+            None
         }
         Err(CommandError::NotAdjacent) => {
             // Тихо игнорируем — клик на далёкую клетку
+            None
         }
         Err(CommandError::TileNotPassable) => {
             info!(
                 "[ADVENTURE] Hero \"{}\" cannot move there — tile is not passable.",
                 hero_name
             );
+            None
         }
         Err(e) => {
             warn!(
                 "[ADVENTURE] Move command failed for hero \"{}\": {:?}",
                 hero_name, e
             );
+            None
         }
     }
 }

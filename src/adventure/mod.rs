@@ -4,8 +4,10 @@ mod sync;
 
 use bevy::prelude::*;
 
+use crate::GameScreen;
 use crate::core::hero::HeroId;
 use crate::core::map::Position;
+use crate::core::player::TownId;
 
 pub use render::build_initial_game_state;
 
@@ -54,6 +56,14 @@ pub struct MovementPointsText;
 /// Маркер спрайта кучки ресурсов на карте приключений.
 #[derive(Component)]
 pub struct ResourcePileMarker(pub Position);
+
+/// Маркер спрайта города на карте приключений.
+#[derive(Component)]
+pub struct TownMarker(#[allow(dead_code)] pub TownId);
+
+/// Текстовая метка армии героя на карте приключений.
+#[derive(Component)]
+pub struct ArmyText;
 
 /// Текстовая метка с количеством золота.
 #[derive(Component)]
@@ -121,8 +131,10 @@ impl Plugin for AdventurePlugin {
                     sync::update_movement_ui,
                     sync::update_resource_ui,
                     sync::update_day_ui,
+                    sync::update_army_ui,
                 )
-                    .chain(),
+                    .chain()
+                    .run_if(in_state(GameScreen::Adventure)),
             );
     }
 }
