@@ -22,6 +22,7 @@ pub enum Side {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct BattleStack {
     pub id: StackId,
     pub unit_type: UnitType,
@@ -59,6 +60,7 @@ pub enum BattleEvent {
 // ---------------------------------------------------------------------------
 
 #[derive(Resource)]
+#[allow(dead_code)]
 pub struct BattleState {
     pub stacks: Vec<BattleStack>,
     pub turn_order: VecDeque<StackId>,
@@ -66,6 +68,7 @@ pub struct BattleState {
     pub log: Vec<BattleEvent>,
 }
 
+#[allow(dead_code)]
 impl BattleState {
     /// Создаёт `BattleState` из армий атакующего и защитника.
     /// Порядок хода: чередование атакующих и защитников по индексу.
