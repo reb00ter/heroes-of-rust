@@ -67,6 +67,14 @@ impl Army {
     }
 
     pub fn add_stack(&mut self, stack: UnitStack) -> Result<(), ArmyFull> {
+        if let Some(existing) = self
+            .0
+            .iter_mut()
+            .find(|s| s.unit_type.name == stack.unit_type.name)
+        {
+            existing.count += stack.count;
+            return Ok(());
+        }
         if self.0.len() >= MAX_ARMY_SLOTS {
             return Err(ArmyFull);
         }
