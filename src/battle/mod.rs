@@ -1,3 +1,5 @@
+pub mod state;
+
 use bevy::prelude::*;
 
 pub struct BattlePlugin;
