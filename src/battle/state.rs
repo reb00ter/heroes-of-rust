@@ -191,10 +191,10 @@ impl BattleState {
             .find(|s| s.id == attacker_id)
             .map(|s| s.side)
             .unwrap_or(Side::Attacker);
-        let side_label = if attacker_side == Side::Attacker { "Атк" } else { "Защ" };
+        let side_label = if attacker_side == Side::Attacker { "Att" } else { "Def" };
 
         info!(
-            "[BATTLE] [{}] {} атакует {}: {} урона, убито {} (осталось {})",
+            "[BATTLE] [{}] {} attacks {}: {} dmg, killed {} (remaining {})",
             side_label, attacker_name, target_name, damage, killed, target_count_after
         );
 
@@ -207,7 +207,7 @@ impl BattleState {
 
         if target_count_after == 0 {
             self.turn_order.retain(|&id| id != target_id);
-            info!("[BATTLE] Отряд {} уничтожен.", target_name);
+            info!("[BATTLE] Stack {} destroyed.", target_name);
             events.push(BattleEvent::StackDied { id: target_id });
         }
 
@@ -230,9 +230,9 @@ impl BattleState {
         if let Some(&next_id) = self.turn_order.front() {
             self.current_stack_id = next_id;
             if let Some(next) = self.stacks.iter().find(|s| s.id == next_id) {
-                let side_label = if next.side == Side::Attacker { "Атк" } else { "Защ" };
+                let side_label = if next.side == Side::Attacker { "Att" } else { "Def" };
                 info!(
-                    "[BATTLE] Ход передан: {} [{}] ×{}",
+                    "[BATTLE] Turn: {} [{}] x{}",
                     next.unit_type.name, side_label, next.count
                 );
             }
