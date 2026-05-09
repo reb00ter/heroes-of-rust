@@ -65,6 +65,20 @@ pub struct TownMarker(#[allow(dead_code)] pub TownId);
 #[derive(Component)]
 pub struct NeutralArmyMarker(pub Position);
 
+// ---------------------------------------------------------------------------
+// Баннер результата боя
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BannerKind {
+    Victory,
+    Defeat,
+}
+
+/// Ресурс-сигнал: показать баннер при следующем входе в Adventure.
+#[derive(Resource, Default)]
+pub struct ShowBanner(pub Option<BannerKind>);
+
 /// Текстовая метка армии героя на карте приключений.
 #[derive(Component)]
 pub struct ArmyText;
@@ -121,7 +135,12 @@ pub struct AdventurePlugin;
 impl Plugin for AdventurePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameStateResource(build_initial_game_state()))
+            .init_resource::<ShowBanner>()
             .add_systems(Startup, render::startup_setup)
+            .add_systems(
+                OnEnter(GameScreen::Adventure),
+                render::show_result_banner,
+            )
             .add_systems(
                 Update,
                 (
@@ -136,6 +155,7 @@ impl Plugin for AdventurePlugin {
                     sync::update_resource_ui,
                     sync::update_day_ui,
                     sync::update_army_ui,
+                    render::tick_banner,
                 )
                     .chain()
                     .run_if(in_state(GameScreen::Adventure)),

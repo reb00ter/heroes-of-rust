@@ -7,9 +7,9 @@ use crate::core::resources::ResourceBag;
 use crate::core::state::GameState;
 
 use super::{
-    ArmyText, DayText, GameStateResource, GoldText, HeroMarker, HoverHighlight, MAP_HEIGHT,
-    MAP_WIDTH, MovementPointsText, NeutralArmyMarker, ResourcePileMarker, TILE_SIZE, TileMarker,
-    TownMarker, grid_to_world,
+    ArmyText, BannerKind, DayText, GameStateResource, GoldText, HeroMarker, HoverHighlight,
+    MAP_HEIGHT, MAP_WIDTH, MovementPointsText, NeutralArmyMarker, ResourcePileMarker, ShowBanner,
+    TILE_SIZE, TileMarker, TownMarker, grid_to_world,
 };
 
 // ---------------------------------------------------------------------------
@@ -385,6 +385,78 @@ fn spawn_ui(commands: &mut Commands, gs: &crate::core::state::GameState, font: H
             ..default()
         },
     ));
+}
+
+// ---------------------------------------------------------------------------
+// Баннер результата боя (5.11)
+// ---------------------------------------------------------------------------
+
+#[derive(Component)]
+pub struct BannerRoot;
+
+#[derive(Component)]
+pub struct BannerTimer(pub Timer);
+
+/// Спавнит баннер «Победа!» / «Поражение» если `ShowBanner` установлен.
+/// Запускается в `OnEnter(GameScreen::Adventure)`.
+#[allow(clippy::needless_pass_by_value)]
+pub fn show_result_banner(
+    mut commands: Commands,
+    mut show_banner: ResMut<ShowBanner>,
+    asset_server: Res<AssetServer>,
+) {
+    let Some(kind) = show_banner.0.take() else {
+        return;
+    };
+
+    let (text, color) = match kind {
+        BannerKind::Victory => ("Победа!", Color::srgb(0.15, 0.90, 0.15)),
+        BannerKind::Defeat => ("Поражение", Color::srgb(0.90, 0.15, 0.15)),
+    };
+
+    let font: Handle<Font> = asset_server.load("fonts/Roboto-Regular.ttf");
+
+    let root = commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.55)),
+            GlobalZIndex(50),
+            BannerRoot,
+            BannerTimer(Timer::from_seconds(2.0, TimerMode::Once)),
+        ))
+        .id();
+
+    let label = commands
+        .spawn((
+            Text::new(text),
+            TextFont { font, font_size: 80.0, ..default() },
+            TextColor(color),
+        ))
+        .id();
+    commands.entity(root).add_child(label);
+}
+
+/// Убирает баннер по истечении 2 секунд или по клику ЛКМ.
+#[allow(clippy::needless_pass_by_value)]
+pub fn tick_banner(
+    mut commands: Commands,
+    time: Res<Time>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut banner_q: Query<(Entity, &mut BannerTimer), With<BannerRoot>>,
+) {
+    for (entity, mut timer) in &mut banner_q {
+        let just_done = timer.0.tick(time.delta()).just_finished();
+        if just_done || mouse.just_pressed(MouseButton::Left) {
+            commands.entity(entity).despawn();
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@ mod render;
 
 use bevy::prelude::*;
 
-use crate::adventure::{GameStateResource, NeutralArmyMarker};
+use crate::adventure::{BannerKind, GameStateResource, NeutralArmyMarker, ShowBanner};
 use crate::core::hero::UnitStack;
 use crate::PendingBattle;
 use state::{BattleState, Side};
@@ -92,6 +92,7 @@ fn finish_battle(
     battle_state: Option<Res<BattleState>>,
     mut game_state: ResMut<GameStateResource>,
     marker_q: Query<(Entity, &NeutralArmyMarker)>,
+    mut show_banner: ResMut<ShowBanner>,
 ) {
     let (Some(result), Some(pending)) = (result, pending) else {
         return;
@@ -130,11 +131,13 @@ fn finish_battle(
             }
         }
 
+        show_banner.0 = Some(BannerKind::Victory);
         info!(
             "[BATTLE] Victory! Hero army updated. Neutral army at ({},{}) removed.",
             pos.x, pos.y
         );
     } else {
+        show_banner.0 = Some(BannerKind::Defeat);
         info!("[BATTLE] Defeat! Hero returns to map.");
     }
 
