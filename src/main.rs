@@ -3,6 +3,7 @@
 mod adventure;
 mod battle;
 mod core;
+mod gameover;
 mod town;
 
 use adventure::AdventurePlugin;
@@ -10,6 +11,7 @@ use battle::BattlePlugin;
 use bevy::prelude::*;
 use core::hero::{Army, HeroId};
 use core::map::Position;
+use gameover::GameOverPlugin;
 use town::TownPlugin;
 
 /// Экран игры — переключается при входе в город/бой и выходе.
@@ -19,6 +21,7 @@ pub enum GameScreen {
     Adventure,
     Town,
     Battle,
+    GameOver,
 }
 
 /// Данные боя, передаваемые из Adventure в Battle при переходе состояния.
@@ -27,6 +30,12 @@ pub struct PendingBattle {
     pub attacker_hero_id: HeroId,
     pub defender_army: Army,
     pub defender_pos: Position,
+}
+
+/// Результат завершённой игры — победа или поражение.
+#[derive(Resource)]
+pub struct GameOverResult {
+    pub is_victory: bool,
 }
 
 fn main() {
@@ -44,5 +53,6 @@ fn main() {
         .add_plugins(AdventurePlugin)
         .add_plugins(TownPlugin)
         .add_plugins(BattlePlugin)
+        .add_plugins(GameOverPlugin)
         .run();
 }

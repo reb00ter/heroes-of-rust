@@ -636,11 +636,9 @@ mod tests {
         use crate::core::hero::UnitStack;
         let mut state = make_test_state();
         let goblin = make_unit_type();
-        state
-            .map
-            .get_mut(Position::new(0, 0))
-            .unwrap()
-            .object = Some(MapObject::NeutralArmy(Army(vec![UnitStack::new(goblin, 3)])));
+        state.map.get_mut(Position::new(0, 0)).unwrap().object = Some(MapObject::NeutralArmy(
+            Army(vec![UnitStack::new(goblin, 3)]),
+        ));
 
         let result = state.apply(GameCommand::MoveHero {
             hero_id: HeroId(1),
@@ -653,6 +651,9 @@ mod tests {
             defender_pos: Position::new(0, 0),
         }));
         // Герой остался на месте
-        assert_eq!(state.get_hero(HeroId(1)).unwrap().position, Position::new(1, 0));
+        assert_eq!(
+            state.get_hero(HeroId(1)).unwrap().position,
+            Position::new(1, 0)
+        );
     }
 }

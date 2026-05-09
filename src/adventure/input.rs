@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
+use crate::PendingBattle;
 use crate::core::commands::{CommandError, GameCommand, GameEvent};
 use crate::core::hero::HeroId;
 use crate::core::map::{MapObject, Position};
 use crate::core::player::TownId;
-use crate::{PendingBattle};
 
 use super::{GameStateResource, HoverHighlight, MAP_HEIGHT, MAP_WIDTH, world_to_grid};
 
@@ -205,11 +205,13 @@ fn apply_move(
         Ok(events) => {
             // Бой?
             for event in &events {
-                if let GameEvent::BattleStarted { attacker, defender_pos } = event {
+                if let GameEvent::BattleStarted {
+                    attacker,
+                    defender_pos,
+                } = event
+                {
                     // Не начинать бой без армии — герой должен сначала нанять войска
-                    let army_empty = gs
-                        .get_hero(*attacker)
-                        .is_none_or(|h| h.army.is_empty());
+                    let army_empty = gs.get_hero(*attacker).is_none_or(|h| h.army.is_empty());
                     if army_empty {
                         info!(
                             "[ADVENTURE] Hero has no army — cannot attack neutral stack at ({},{}).",
@@ -239,8 +241,7 @@ fn apply_move(
             }
 
             // Вошёл ли герой в город?
-            if let Some(MapObject::Town(id)) = gs.map.get(target).and_then(|t| t.object.as_ref())
-            {
+            if let Some(MapObject::Town(id)) = gs.map.get(target).and_then(|t| t.object.as_ref()) {
                 return MoveOutcome::Town(*id);
             }
 

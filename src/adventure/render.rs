@@ -27,31 +27,33 @@ const COLOR_RESOURCE_PILE: Color = Color::srgb(0.95, 0.75, 0.10);
 // Стартовое состояние игры
 // ---------------------------------------------------------------------------
 
-/// Создаёт тестовое состояние игры для Этапа 2: карта 16×12 с препятствиями и героем.
+/// Создаёт стартовое состояние игры для вертикального среза: карта 20×15 с тремя нейтральными
+/// отрядами, городом и стартовой армией героя.
 #[allow(clippy::too_many_lines)]
 pub fn build_initial_game_state() -> GameState {
     let mut map = AdventureMap::new(MAP_WIDTH, MAP_HEIGHT);
 
-    // Расставляем препятствия — несколько групп скал
+    // Группы скал-препятствий
     let obstacles = [
+        // Скалы севернее старта
+        (3, 0),
+        (4, 0),
         (3, 1),
-        (3, 2),
-        (3, 3),
-        (3, 4),
-        (7, 3),
-        (7, 4),
-        (7, 5),
-        (7, 6),
-        (10, 2),
-        (10, 3),
-        (11, 2),
-        (13, 7),
-        (13, 8),
-        (14, 7),
-        (14, 8),
-        (5, 8),
-        (5, 9),
-        (6, 9),
+        // Центральный барьер
+        (9, 3),
+        (9, 4),
+        (9, 5),
+        // Восточный регион
+        (14, 1),
+        (14, 2),
+        (15, 8),
+        (15, 9),
+        // Юг
+        (6, 12),
+        (7, 12),
+        (7, 13),
+        (11, 11),
+        (12, 11),
     ];
     for (x, y) in obstacles {
         if let Some(tile) = map.get_mut(crate::core::map::Position::new(x, y)) {
@@ -59,8 +61,19 @@ pub fn build_initial_game_state() -> GameState {
         }
     }
 
-    // Несколько клеток воды у края
-    let water = [(0, 10), (0, 11), (1, 11), (2, 11), (15, 0), (15, 1)];
+    // Вода по углам карты
+    let water = [
+        (0, 13),
+        (0, 14),
+        (1, 14),
+        (2, 14),
+        (19, 0),
+        (19, 1),
+        (18, 0),
+        (18, 14),
+        (19, 14),
+        (19, 13),
+    ];
     for (x, y) in water {
         if let Some(tile) = map.get_mut(crate::core::map::Position::new(x, y)) {
             tile.kind = TileKind::Water;
@@ -69,11 +82,11 @@ pub fn build_initial_game_state() -> GameState {
 
     // Кучки золота на карте
     let gold_piles: [(i32, i32, u32); 5] = [
-        (5, 2, 100),
-        (2, 6, 150),
-        (8, 1, 200),
-        (11, 6, 250),
-        (4, 10, 100),
+        (2, 5, 150),
+        (7, 1, 200),
+        (10, 9, 250),
+        (15, 3, 300),
+        (18, 12, 200),
     ];
     for (x, y, amount) in gold_piles {
         if let Some(tile) = map.get_mut(crate::core::map::Position::new(x, y)) {
@@ -81,7 +94,7 @@ pub fn build_initial_game_state() -> GameState {
         }
     }
 
-    // Типы существ для найма
+    // Типы существ для найма в городе
     let peasant = UnitType {
         name: "Крестьянин".to_string(),
         damage_per_unit: 1,
@@ -95,21 +108,29 @@ pub fn build_initial_game_state() -> GameState {
         cost: ResourceBag::gold(75),
     };
 
-    // Город с доступными для найма существами
+    // Стартовая армия героя — 5 крестьян
+    let peasant_starter = UnitType {
+        name: "Крестьянин".to_string(),
+        damage_per_unit: 1,
+        hp: 5,
+        cost: ResourceBag::gold(25),
+    };
+
+    // Город ближе к старту
     let mut town = Town::new(
         TownId(0),
-        crate::core::map::Position::new(12, 5),
+        crate::core::map::Position::new(4, 2),
         ResourceBag::gold(250),
     );
     town.available_recruits = vec![(peasant, 10), (swordsman, 5)];
     town.daily_growth = vec![5, 2];
 
     // Объект города на тайле карты
-    if let Some(tile) = map.get_mut(crate::core::map::Position::new(12, 5)) {
+    if let Some(tile) = map.get_mut(crate::core::map::Position::new(4, 2)) {
         tile.object = Some(MapObject::Town(TownId(0)));
     }
 
-    // Нейтральные отряды
+    // Нейтральные отряды трёх уровней сложности
     let goblin = UnitType {
         name: "Гоблин".to_string(),
         damage_per_unit: 2,
@@ -122,15 +143,27 @@ pub fn build_initial_game_state() -> GameState {
         hp: 10,
         cost: ResourceBag::gold(0),
     };
-    if let Some(tile) = map.get_mut(crate::core::map::Position::new(5, 3)) {
-        tile.object = Some(MapObject::NeutralArmy(Army(vec![UnitStack::new(goblin, 5)])));
+    let troll = UnitType {
+        name: "Тролль".to_string(),
+        damage_per_unit: 8,
+        hp: 25,
+        cost: ResourceBag::gold(0),
+    };
+
+    if let Some(tile) = map.get_mut(crate::core::map::Position::new(7, 5)) {
+        tile.object = Some(MapObject::NeutralArmy(Army(vec![UnitStack::new(
+            goblin, 5,
+        )])));
     }
-    if let Some(tile) = map.get_mut(crate::core::map::Position::new(10, 7)) {
-        tile.object = Some(MapObject::NeutralArmy(Army(vec![UnitStack::new(orc, 3)])));
+    if let Some(tile) = map.get_mut(crate::core::map::Position::new(13, 6)) {
+        tile.object = Some(MapObject::NeutralArmy(Army(vec![UnitStack::new(orc, 4)])));
+    }
+    if let Some(tile) = map.get_mut(crate::core::map::Position::new(17, 10)) {
+        tile.object = Some(MapObject::NeutralArmy(Army(vec![UnitStack::new(troll, 2)])));
     }
 
-    // Герой
-    let hero = Hero {
+    // Герой со стартовой армией
+    let mut hero = Hero {
         id: HeroId(0),
         name: "Aldric".to_string(),
         position: crate::core::map::Position::new(1, 1),
@@ -138,6 +171,7 @@ pub fn build_initial_game_state() -> GameState {
         movement_points: 10,
         movement_points_max: 10,
     };
+    let _ = hero.army.add_stack(UnitStack::new(peasant_starter, 5));
 
     // Игрок
     let mut player = Player::new(PlayerId(0));
@@ -146,7 +180,7 @@ pub fn build_initial_game_state() -> GameState {
 
     let obj_count = obstacles.len() + water.len();
     info!(
-        "[ADVENTURE] Game initialized. Map: {}x{}, obstacles+water: {}, gold piles: {}.",
+        "[ADVENTURE] Game initialized. Map: {}x{}, obstacles+water: {}, gold piles: {}, neutrals: 3. Hero army: [Peasants x5].",
         MAP_WIDTH,
         MAP_HEIGHT,
         obj_count,
@@ -412,7 +446,6 @@ pub fn show_result_banner(
 
     let (text, color) = match kind {
         BannerKind::Victory => ("Победа!", Color::srgb(0.15, 0.90, 0.15)),
-        BannerKind::Defeat => ("Поражение", Color::srgb(0.90, 0.15, 0.15)),
     };
 
     let font: Handle<Font> = asset_server.load("fonts/Roboto-Regular.ttf");
@@ -437,7 +470,11 @@ pub fn show_result_banner(
     let label = commands
         .spawn((
             Text::new(text),
-            TextFont { font, font_size: 80.0, ..default() },
+            TextFont {
+                font,
+                font_size: 80.0,
+                ..default()
+            },
             TextColor(color),
         ))
         .id();
@@ -470,11 +507,17 @@ mod tests {
     use crate::core::map::Position;
 
     #[test]
+    fn three_neutral_armies_on_map() {
+        let gs = build_initial_game_state();
+        assert_eq!(gs.count_neutral_armies(), 3);
+    }
+
+    #[test]
     fn neutral_armies_placed() {
         let gs = build_initial_game_state();
 
-        let goblin_tile = gs.map.get(Position::new(5, 3)).expect("tile (5,3) exists");
-        match goblin_tile.object.as_ref().expect("object on (5,3)") {
+        let goblin_tile = gs.map.get(Position::new(7, 5)).expect("tile (7,5) exists");
+        match goblin_tile.object.as_ref().expect("object on (7,5)") {
             MapObject::NeutralArmy(army) => {
                 assert_eq!(army.0.len(), 1);
                 assert_eq!(army.0[0].count, 5);
@@ -482,26 +525,61 @@ mod tests {
                 assert_eq!(army.0[0].unit_type.damage_per_unit, 2);
                 assert_eq!(army.0[0].unit_type.hp, 5);
             }
-            other => panic!("expected NeutralArmy at (5,3), got {other:?}"),
+            other => panic!("expected NeutralArmy at (7,5), got {other:?}"),
         }
 
-        let orc_tile = gs.map.get(Position::new(10, 7)).expect("tile (10,7) exists");
-        match orc_tile.object.as_ref().expect("object on (10,7)") {
+        let orc_tile = gs
+            .map
+            .get(Position::new(13, 6))
+            .expect("tile (13,6) exists");
+        match orc_tile.object.as_ref().expect("object on (13,6)") {
             MapObject::NeutralArmy(army) => {
                 assert_eq!(army.0.len(), 1);
-                assert_eq!(army.0[0].count, 3);
+                assert_eq!(army.0[0].count, 4);
                 assert_eq!(army.0[0].unit_type.name, "Орк");
                 assert_eq!(army.0[0].unit_type.damage_per_unit, 4);
                 assert_eq!(army.0[0].unit_type.hp, 10);
             }
-            other => panic!("expected NeutralArmy at (10,7), got {other:?}"),
+            other => panic!("expected NeutralArmy at (13,6), got {other:?}"),
+        }
+
+        let troll_tile = gs
+            .map
+            .get(Position::new(17, 10))
+            .expect("tile (17,10) exists");
+        match troll_tile.object.as_ref().expect("object on (17,10)") {
+            MapObject::NeutralArmy(army) => {
+                assert_eq!(army.0.len(), 1);
+                assert_eq!(army.0[0].count, 2);
+                assert_eq!(army.0[0].unit_type.name, "Тролль");
+                assert_eq!(army.0[0].unit_type.damage_per_unit, 8);
+                assert_eq!(army.0[0].unit_type.hp, 25);
+            }
+            other => panic!("expected NeutralArmy at (17,10), got {other:?}"),
         }
     }
 
     #[test]
     fn neutral_army_blocks_movement() {
         let gs = build_initial_game_state();
-        assert!(!gs.map.is_passable(Position::new(5, 3)));
-        assert!(!gs.map.is_passable(Position::new(10, 7)));
+        assert!(!gs.map.is_passable(Position::new(7, 5)));
+        assert!(!gs.map.is_passable(Position::new(13, 6)));
+        assert!(!gs.map.is_passable(Position::new(17, 10)));
+    }
+
+    #[test]
+    fn hero_has_starter_army() {
+        let gs = build_initial_game_state();
+        let hero = gs.heroes.first().expect("hero exists");
+        assert!(!hero.army.0.is_empty(), "hero must start with an army");
+        assert_eq!(hero.army.0[0].unit_type.name, "Крестьянин");
+        assert_eq!(hero.army.0[0].count, 5);
+    }
+
+    #[test]
+    fn town_near_start() {
+        let gs = build_initial_game_state();
+        let town = gs.towns.first().expect("town exists");
+        assert_eq!(town.position, Position::new(4, 2));
     }
 }

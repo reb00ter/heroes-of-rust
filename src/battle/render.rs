@@ -28,10 +28,7 @@ pub fn spawn_battle_ui(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn despawn_battle_ui(
-    mut commands: Commands,
-    root_q: Query<Entity, With<BattleScreenRoot>>,
-) {
+pub fn despawn_battle_ui(mut commands: Commands, root_q: Query<Entity, With<BattleScreenRoot>>) {
     for entity in &root_q {
         commands.entity(entity).despawn();
     }
@@ -117,7 +114,11 @@ fn spawn_ui_inner(commands: &mut Commands, battle: &BattleState, font: Handle<Fo
     let title = commands
         .spawn((
             Text::new("БОЙ"),
-            TextFont { font: font.clone(), font_size: 36.0, ..default() },
+            TextFont {
+                font: font.clone(),
+                font_size: 36.0,
+                ..default()
+            },
             TextColor(Color::WHITE),
         ))
         .id();
@@ -163,7 +164,11 @@ fn spawn_ui_inner(commands: &mut Commands, battle: &BattleState, font: Handle<Fo
     let turn_text = commands
         .spawn((
             Text::new(turn_label),
-            TextFont { font, font_size: 22.0, ..default() },
+            TextFont {
+                font,
+                font_size: 22.0,
+                ..default()
+            },
             TextColor(Color::srgb(0.9, 0.9, 0.5)),
             TurnLabel,
         ))
@@ -195,7 +200,11 @@ fn spawn_column(
     let header_entity = commands
         .spawn((
             Text::new(header),
-            TextFont { font: font.clone(), font_size: 20.0, ..default() },
+            TextFont {
+                font: font.clone(),
+                font_size: 20.0,
+                ..default()
+            },
             TextColor(header_color),
         ))
         .id();
@@ -235,7 +244,11 @@ fn spawn_column(
                     "{}{} ×{}",
                     prefix, stack.unit_type.name, stack.count
                 )),
-                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 20.0,
+                    ..default()
+                },
                 TextColor(name_color),
             ))
             .id();
@@ -247,7 +260,11 @@ fn spawn_column(
                     "HP: {}  Dmg: {}",
                     stack.hp_remaining, stack.unit_type.damage_per_unit
                 )),
-                TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 16.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.75, 0.75, 0.75)),
             ))
             .id();
@@ -277,7 +294,11 @@ fn spawn_column(
             let btn_text = commands
                 .spawn((
                     Text::new("Атаковать"),
-                    TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                    TextFont {
+                        font: font.clone(),
+                        font_size: 16.0,
+                        ..default()
+                    },
                     TextColor(Color::WHITE),
                 ))
                 .id();

@@ -183,15 +183,22 @@ impl BattleState {
         let target_count_after = target.count;
         let target_name = target.unit_type.name.clone();
 
-        let attacker_name = self.stacks.iter()
+        let attacker_name = self
+            .stacks
+            .iter()
             .find(|s| s.id == attacker_id)
             .map(|s| s.unit_type.name.clone())
             .unwrap_or_default();
-        let attacker_side = self.stacks.iter()
+        let attacker_side = self
+            .stacks
+            .iter()
             .find(|s| s.id == attacker_id)
-            .map(|s| s.side)
-            .unwrap_or(Side::Attacker);
-        let side_label = if attacker_side == Side::Attacker { "Att" } else { "Def" };
+            .map_or(Side::Attacker, |s| s.side);
+        let side_label = if attacker_side == Side::Attacker {
+            "Att"
+        } else {
+            "Def"
+        };
 
         info!(
             "[BATTLE] [{}] {} attacks {}: {} dmg, killed {} (remaining {})",
@@ -230,7 +237,11 @@ impl BattleState {
         if let Some(&next_id) = self.turn_order.front() {
             self.current_stack_id = next_id;
             if let Some(next) = self.stacks.iter().find(|s| s.id == next_id) {
-                let side_label = if next.side == Side::Attacker { "Att" } else { "Def" };
+                let side_label = if next.side == Side::Attacker {
+                    "Att"
+                } else {
+                    "Def"
+                };
                 info!(
                     "[BATTLE] Turn: {} [{}] x{}",
                     next.unit_type.name, side_label, next.count
@@ -244,8 +255,14 @@ impl BattleState {
 
     /// Возвращает победителя, если бой закончен.
     pub fn is_over(&self) -> Option<Side> {
-        let any_attacker = self.stacks.iter().any(|s| s.side == Side::Attacker && s.count > 0);
-        let any_defender = self.stacks.iter().any(|s| s.side == Side::Defender && s.count > 0);
+        let any_attacker = self
+            .stacks
+            .iter()
+            .any(|s| s.side == Side::Attacker && s.count > 0);
+        let any_defender = self
+            .stacks
+            .iter()
+            .any(|s| s.side == Side::Defender && s.count > 0);
         match (any_attacker, any_defender) {
             (false, _) => Some(Side::Defender),
             (_, false) => Some(Side::Attacker),
@@ -265,16 +282,32 @@ mod tests {
     use crate::core::resources::ResourceBag;
 
     fn goblin() -> UnitType {
-        UnitType { name: "Goblin".into(), damage_per_unit: 2, hp: 5, cost: ResourceBag::gold(0) }
+        UnitType {
+            name: "Goblin".into(),
+            damage_per_unit: 2,
+            hp: 5,
+            cost: ResourceBag::gold(0),
+        }
     }
 
     fn swordsman() -> UnitType {
-        UnitType { name: "Swordsman".into(), damage_per_unit: 3, hp: 10, cost: ResourceBag::gold(0) }
+        UnitType {
+            name: "Swordsman".into(),
+            damage_per_unit: 3,
+            hp: 10,
+            cost: ResourceBag::gold(0),
+        }
     }
 
     fn make_battle(att: &[(UnitType, u32)], def: &[(UnitType, u32)]) -> BattleState {
-        let att_stacks: Vec<UnitStack> = att.iter().map(|(ut, n)| UnitStack::new(ut.clone(), *n)).collect();
-        let def_stacks: Vec<UnitStack> = def.iter().map(|(ut, n)| UnitStack::new(ut.clone(), *n)).collect();
+        let att_stacks: Vec<UnitStack> = att
+            .iter()
+            .map(|(ut, n)| UnitStack::new(ut.clone(), *n))
+            .collect();
+        let def_stacks: Vec<UnitStack> = def
+            .iter()
+            .map(|(ut, n)| UnitStack::new(ut.clone(), *n))
+            .collect();
         BattleState::from_armies(&att_stacks, &def_stacks)
     }
 
@@ -282,7 +315,12 @@ mod tests {
     fn battle_attack_kills_units() {
         // Атакующий: 5 гоблинов (2 урона) → 10 урона → убивает 1 мечника (hp=10)
         let mut b = make_battle(&[(goblin(), 5)], &[(swordsman(), 3)]);
-        let def_id = b.stacks.iter().find(|s| s.side == Side::Defender).unwrap().id;
+        let def_id = b
+            .stacks
+            .iter()
+            .find(|s| s.side == Side::Defender)
+            .unwrap()
+            .id;
         b.attack(def_id);
         let def = b.stacks.iter().find(|s| s.id == def_id).unwrap();
         assert_eq!(def.count, 2);
@@ -292,7 +330,12 @@ mod tests {
     fn battle_stack_removed_when_dead() {
         // 10 гоблинов (2 урона) → 20 урона убивают 2 мечников (hp=10, count=2)
         let mut b = make_battle(&[(goblin(), 10)], &[(swordsman(), 2)]);
-        let def_id = b.stacks.iter().find(|s| s.side == Side::Defender).unwrap().id;
+        let def_id = b
+            .stacks
+            .iter()
+            .find(|s| s.side == Side::Defender)
+            .unwrap()
+            .id;
         b.attack(def_id);
         assert!(!b.turn_order.contains(&def_id));
         let def = b.stacks.iter().find(|s| s.id == def_id).unwrap();
@@ -302,7 +345,12 @@ mod tests {
     #[test]
     fn battle_over_when_all_defenders_dead() {
         let mut b = make_battle(&[(goblin(), 10)], &[(swordsman(), 2)]);
-        let def_id = b.stacks.iter().find(|s| s.side == Side::Defender).unwrap().id;
+        let def_id = b
+            .stacks
+            .iter()
+            .find(|s| s.side == Side::Defender)
+            .unwrap()
+            .id;
         b.attack(def_id);
         assert_eq!(b.is_over(), Some(Side::Attacker));
     }
@@ -319,7 +367,15 @@ mod tests {
             .iter()
             .map(|id| b.stacks.iter().find(|s| s.id == *id).unwrap().side)
             .collect();
-        assert_eq!(order, vec![Side::Attacker, Side::Defender, Side::Attacker, Side::Defender]);
+        assert_eq!(
+            order,
+            vec![
+                Side::Attacker,
+                Side::Defender,
+                Side::Attacker,
+                Side::Defender
+            ]
+        );
     }
 
     #[test]
@@ -332,7 +388,12 @@ mod tests {
         let current = b.current_stack().unwrap();
         assert_eq!(current.side, Side::Defender);
 
-        let att_id = b.stacks.iter().find(|s| s.side == Side::Attacker).unwrap().id;
+        let att_id = b
+            .stacks
+            .iter()
+            .find(|s| s.side == Side::Attacker)
+            .unwrap()
+            .id;
         let events = b.attack(att_id);
         assert!(events.iter().any(|e| matches!(e, BattleEvent::Attacked { attacker_id, target_id, .. }
             if *target_id == att_id && b.stacks.iter().any(|s| s.id == *attacker_id && s.side == Side::Defender)

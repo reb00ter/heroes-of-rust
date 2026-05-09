@@ -71,7 +71,7 @@ impl Tile {
 pub struct AdventureMap {
     pub width: u32,
     pub height: u32,
-    tiles: Vec<Tile>,
+    pub tiles: Vec<Tile>,
 }
 
 impl AdventureMap {

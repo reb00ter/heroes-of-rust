@@ -6,7 +6,7 @@ use bevy::prelude::*;
 
 use crate::GameScreen;
 use crate::core::hero::HeroId;
-use crate::core::map::Position;
+use crate::core::map::{MapObject, Position};
 use crate::core::player::TownId;
 
 pub use render::build_initial_game_state;
@@ -16,8 +16,8 @@ pub use render::build_initial_game_state;
 // ---------------------------------------------------------------------------
 
 pub const TILE_SIZE: f32 = 48.0;
-pub const MAP_WIDTH: u32 = 16;
-pub const MAP_HEIGHT: u32 = 12;
+pub const MAP_WIDTH: u32 = 20;
+pub const MAP_HEIGHT: u32 = 15;
 
 // ---------------------------------------------------------------------------
 // Bevy-ресурс, оборачивающий чистое GameState
@@ -72,7 +72,6 @@ pub struct NeutralArmyMarker(pub Position);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BannerKind {
     Victory,
-    Defeat,
 }
 
 /// Ресурс-сигнал: показать баннер при следующем входе в Adventure.
@@ -90,6 +89,105 @@ pub struct GoldText;
 /// Текстовая метка с текущим днём.
 #[derive(Component)]
 pub struct DayText;
+
+/// Маркер-ресурс: при следующем входе в Adventure пересоздать спрайты объектов карты.
+/// Вставляется при нажатии «Играть снова» из экрана `GameOver`.
+#[derive(Resource, Default)]
+pub struct NeedsMapReset;
+
+// ---------------------------------------------------------------------------
+// Системы сброса карты и проверки победы
+// ---------------------------------------------------------------------------
+
+/// При перезапуске из `GameOver` — пересоздаёт спрайты объектов карты.
+/// Запускается первым в `OnEnter(GameScreen::Adventure)`.
+#[allow(clippy::needless_pass_by_value)]
+fn reset_map_on_restart(
+    mut commands: Commands,
+    reset: Option<Res<NeedsMapReset>>,
+    game_state: Res<GameStateResource>,
+    pile_q: Query<Entity, With<ResourcePileMarker>>,
+    neutral_q: Query<Entity, With<NeutralArmyMarker>>,
+    hero_q: Query<Entity, With<HeroMarker>>,
+) {
+    let Some(_) = reset else {
+        return;
+    };
+    commands.remove_resource::<NeedsMapReset>();
+
+    // Удалить старые спрайты
+    for e in &pile_q {
+        commands.entity(e).despawn();
+    }
+    for e in &neutral_q {
+        commands.entity(e).despawn();
+    }
+    for e in &hero_q {
+        commands.entity(e).despawn();
+    }
+
+    // Пересоздать из сброшенного GameState
+    let gs = &game_state.0;
+    #[allow(clippy::cast_possible_wrap)]
+    for y in 0..MAP_HEIGHT {
+        for x in 0..MAP_WIDTH {
+            let pos = Position::new(x as i32, y as i32);
+            match gs.map.get(pos).and_then(|t| t.object.as_ref()) {
+                Some(MapObject::ResourcePile(_)) => {
+                    let world = grid_to_world(pos);
+                    commands.spawn((
+                        Sprite {
+                            color: Color::srgb(0.95, 0.75, 0.10),
+                            custom_size: Some(Vec2::splat(TILE_SIZE * 0.5)),
+                            ..default()
+                        },
+                        Transform::from_xyz(world.x, world.y, 1.0),
+                        ResourcePileMarker(pos),
+                    ));
+                }
+                Some(MapObject::NeutralArmy(_)) => {
+                    let world = grid_to_world(pos);
+                    commands.spawn((
+                        Sprite {
+                            color: Color::srgb(0.85, 0.15, 0.15),
+                            custom_size: Some(Vec2::splat(TILE_SIZE * 0.75)),
+                            ..default()
+                        },
+                        Transform::from_xyz(world.x, world.y, 1.0),
+                        NeutralArmyMarker(pos),
+                    ));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Пересоздать героя
+    if let Some(hero) = gs.heroes.first() {
+        let world = grid_to_world(hero.position);
+        commands.spawn((
+            Sprite {
+                color: Color::srgb(0.95, 0.80, 0.10),
+                custom_size: Some(Vec2::splat(TILE_SIZE * 0.65)),
+                ..default()
+            },
+            Transform::from_xyz(world.x, world.y, 4.0),
+            HeroMarker(hero.id),
+        ));
+    }
+}
+
+/// Если после боя установлен `GameOverResult` — немедленно переходить на `GameOver`.
+/// Запускается вторым в `OnEnter(GameScreen::Adventure)`, после `reset_map_on_restart`.
+#[allow(clippy::needless_pass_by_value)]
+fn check_game_over(
+    game_over: Option<Res<crate::GameOverResult>>,
+    mut next_state: ResMut<NextState<GameScreen>>,
+) {
+    if game_over.is_some() {
+        next_state.set(GameScreen::GameOver);
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Вспомогательные функции конвертации координат
@@ -139,7 +237,12 @@ impl Plugin for AdventurePlugin {
             .add_systems(Startup, render::startup_setup)
             .add_systems(
                 OnEnter(GameScreen::Adventure),
-                render::show_result_banner,
+                (
+                    reset_map_on_restart,
+                    check_game_over,
+                    render::show_result_banner,
+                )
+                    .chain(),
             )
             .add_systems(
                 Update,
@@ -189,7 +292,7 @@ mod tests {
 
     #[test]
     fn round_trip_far_corner() {
-        let pos = Position::new(15, 11);
+        let pos = Position::new(19, 14);
         let world = grid_to_world(pos);
         let back = world_to_grid(world);
         assert_eq!(back, pos);

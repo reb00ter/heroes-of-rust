@@ -43,4 +43,80 @@ impl GameState {
             .find(|p| p.id == id)
             .expect("active player must always exist")
     }
+
+    /// Возвращает количество нейтральных армий, оставшихся на карте.
+    #[must_use]
+    pub fn count_neutral_armies(&self) -> usize {
+        use crate::core::map::MapObject;
+        self.map
+            .tiles
+            .iter()
+            .filter(|t| matches!(t.object, Some(MapObject::NeutralArmy(_))))
+            .count()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Тесты
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use crate::core::hero::{Army, UnitStack, UnitType};
+    use crate::core::map::{AdventureMap, MapObject};
+    use crate::core::player::{Player, PlayerId};
+    use crate::core::resources::ResourceBag;
+
+    use super::*;
+
+    fn minimal_state(map: AdventureMap) -> GameState {
+        GameState {
+            map,
+            players: vec![Player::new(PlayerId(0))],
+            heroes: vec![],
+            towns: vec![],
+            current_day: 1,
+            active_player_id: PlayerId(0),
+        }
+    }
+
+    fn neutral_army() -> MapObject {
+        let unit = UnitType {
+            name: "Гоблин".to_string(),
+            damage_per_unit: 2,
+            hp: 5,
+            cost: ResourceBag::gold(0),
+        };
+        MapObject::NeutralArmy(Army(vec![UnitStack::new(unit, 3)]))
+    }
+
+    #[test]
+    fn victory_when_all_neutrals_dead() {
+        let map = AdventureMap::new(5, 5);
+        let gs = minimal_state(map);
+        assert_eq!(gs.count_neutral_armies(), 0);
+    }
+
+    #[test]
+    fn neutrals_counted_correctly() {
+        let mut map = AdventureMap::new(5, 5);
+        map.get_mut(crate::core::map::Position::new(1, 0))
+            .unwrap()
+            .object = Some(neutral_army());
+        map.get_mut(crate::core::map::Position::new(2, 0))
+            .unwrap()
+            .object = Some(neutral_army());
+        map.get_mut(crate::core::map::Position::new(3, 0))
+            .unwrap()
+            .object = Some(neutral_army());
+
+        let mut gs = minimal_state(map);
+        assert_eq!(gs.count_neutral_armies(), 3);
+
+        gs.map
+            .get_mut(crate::core::map::Position::new(1, 0))
+            .unwrap()
+            .object = None;
+        assert_eq!(gs.count_neutral_armies(), 2);
+    }
 }
