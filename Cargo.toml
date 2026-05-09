@@ -6,6 +6,9 @@ edition = "2024"
 [dependencies]
 bevy = { version = "0.18", features = ["dynamic_linking"] }
 
+[build-dependencies]
+resvg = "0.44"
+
 # Быстрая сборка в режиме разработки
 [profile.dev]
 opt-level = 1

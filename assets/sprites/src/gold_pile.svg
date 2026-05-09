@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <!-- Градиент верхней грани монеты: блик слева-сверху, тень по краям -->
+    <radialGradient id="gc" cx="36%" cy="28%" r="70%" fx="36%" fy="28%">
+      <stop offset="0%"   stop-color="#FFF8C0"/>
+      <stop offset="22%"  stop-color="#F8D040"/>
+      <stop offset="58%"  stop-color="#C89C18"/>
+      <stop offset="100%" stop-color="#7A5808"/>
+    </radialGradient>
+
+    <!-- Градиент боковой грани монеты (сверху чуть светлее) -->
+    <linearGradient id="gs" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#A07A14"/>
+      <stop offset="100%" stop-color="#3E2808"/>
+    </linearGradient>
+
+    <!-- Мягкая тень под кучей -->
+    <radialGradient id="sh" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#000000" stop-opacity="0.38"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Тень под кучкой -->
+  <ellipse cx="32" cy="55" rx="23" ry="6" fill="url(#sh)"/>
+
+  <!--
+    Каждая монета = боковая грань (path) + верхняя грань (ellipse).
+    Порядок рисования: дальние монеты первыми, ближние — поверх.
+
+    Формула боковой грани монеты с центром (cx,cy), радиусами (rx,ry), глубиной d:
+      M cx-rx,cy  A rx,ry 0 0,1 cx+rx,cy  L cx+rx,cy+d  A rx,ry 0 0,0 cx-rx,cy+d  Z
+    sweep=1 по часовой = нижняя дуга эллипса (видимая сторона).
+  -->
+
+  <!-- ── Верхняя монета (cx=32, cy=26) ── -->
+  <path d="M21,26 A11,5 0 0,1 43,26 L43,30 A11,5 0 0,0 21,30 Z" fill="url(#gs)"/>
+  <ellipse cx="32" cy="26" rx="11" ry="5" fill="url(#gc)" stroke="#5A3C06" stroke-width="0.6"/>
+  <!-- Блик -->
+  <ellipse cx="27" cy="24" rx="2.8" ry="1.3" fill="#FFFFF0" fill-opacity="0.55"/>
+
+  <!-- ── Средний ряд: левая (cx=23, cy=36) ── -->
+  <path d="M12,36 A11,5 0 0,1 34,36 L34,40 A11,5 0 0,0 12,40 Z" fill="url(#gs)"/>
+  <ellipse cx="23" cy="36" rx="11" ry="5" fill="url(#gc)" stroke="#5A3C06" stroke-width="0.6"/>
+
+  <!-- ── Средний ряд: правая (cx=41, cy=36) ── -->
+  <path d="M30,36 A11,5 0 0,1 52,36 L52,40 A11,5 0 0,0 30,40 Z" fill="url(#gs)"/>
+  <ellipse cx="41" cy="36" rx="11" ry="5" fill="url(#gc)" stroke="#5A3C06" stroke-width="0.6"/>
+
+  <!-- ── Нижний ряд: левая (cx=16, cy=46) ── -->
+  <path d="M5,46 A11,5 0 0,1 27,46 L27,50 A11,5 0 0,0 5,50 Z" fill="url(#gs)"/>
+  <ellipse cx="16" cy="46" rx="11" ry="5" fill="url(#gc)" stroke="#5A3C06" stroke-width="0.6"/>
+
+  <!-- ── Нижний ряд: правая (cx=48, cy=46) ── -->
+  <path d="M37,46 A11,5 0 0,1 59,46 L59,50 A11,5 0 0,0 37,50 Z" fill="url(#gs)"/>
+  <ellipse cx="48" cy="46" rx="11" ry="5" fill="url(#gc)" stroke="#5A3C06" stroke-width="0.6"/>
+
+  <!-- ── Нижний ряд: центральная (cx=32, cy=48, чуть ниже = ближе к зрителю) ── -->
+  <path d="M21,48 A11,5 0 0,1 43,48 L43,52 A11,5 0 0,0 21,52 Z" fill="url(#gs)"/>
+  <ellipse cx="32" cy="48" rx="11" ry="5" fill="url(#gc)" stroke="#5A3C06" stroke-width="0.6"/>
+
+</svg>

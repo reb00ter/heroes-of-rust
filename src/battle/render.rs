@@ -59,6 +59,7 @@ pub fn update_battle_ui(
 // Построение UI
 // ---------------------------------------------------------------------------
 
+#[allow(clippy::too_many_lines)]
 fn spawn_ui_inner(commands: &mut Commands, battle: &BattleState, font: Handle<Font>) {
     let current_id = battle.current_stack_id;
     let is_attacker_turn = battle
@@ -176,7 +177,7 @@ fn spawn_ui_inner(commands: &mut Commands, battle: &BattleState, font: Handle<Fo
     commands.entity(root).add_child(turn_text);
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 fn spawn_column(
     commands: &mut Commands,
     font: &Handle<Font>,

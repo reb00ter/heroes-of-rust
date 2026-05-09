@@ -21,7 +21,6 @@ const COLOR_OBSTACLE: Color = Color::srgb(0.45, 0.45, 0.45);
 const COLOR_WATER: Color = Color::srgb(0.15, 0.35, 0.80);
 const COLOR_HERO: Color = Color::srgb(0.95, 0.80, 0.10);
 const COLOR_HOVER: Color = Color::srgba(1.0, 1.0, 1.0, 0.30);
-const COLOR_RESOURCE_PILE: Color = Color::srgb(0.95, 0.75, 0.10);
 
 // ---------------------------------------------------------------------------
 // Стартовое состояние игры
@@ -209,6 +208,8 @@ pub fn startup_setup(
 ) {
     let gs = &game_state.0;
     let font: Handle<Font> = asset_server.load("fonts/Roboto-Regular.ttf");
+    // Спрайт кучки золота — генерируется из SVG при сборке (build.rs + resvg)
+    let gold_pile_tex: Handle<Image> = asset_server.load("sprites/gold_pile.png");
 
     // Камера по центру карты (мировой центр = (0,0))
     commands.spawn(Camera2d);
@@ -253,8 +254,8 @@ pub fn startup_setup(
                 let world = grid_to_world(pos);
                 commands.spawn((
                     Sprite {
-                        color: COLOR_RESOURCE_PILE,
-                        custom_size: Some(Vec2::splat(TILE_SIZE * 0.5)),
+                        image: gold_pile_tex.clone(),
+                        custom_size: Some(Vec2::splat(TILE_SIZE * 0.9)),
                         ..default()
                     },
                     Transform::from_xyz(world.x, world.y, 1.0),
