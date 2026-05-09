@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use bevy::log::info;
 use bevy::prelude::*;
 
 use crate::core::hero::UnitType;
@@ -179,6 +180,23 @@ impl BattleState {
 
         let killed = killed.min(target.count);
         target.count = target.count.saturating_sub(killed);
+        let target_count_after = target.count;
+        let target_name = target.unit_type.name.clone();
+
+        let attacker_name = self.stacks.iter()
+            .find(|s| s.id == attacker_id)
+            .map(|s| s.unit_type.name.clone())
+            .unwrap_or_default();
+        let attacker_side = self.stacks.iter()
+            .find(|s| s.id == attacker_id)
+            .map(|s| s.side)
+            .unwrap_or(Side::Attacker);
+        let side_label = if attacker_side == Side::Attacker { "Атк" } else { "Защ" };
+
+        info!(
+            "[BATTLE] [{}] {} атакует {}: {} урона, убито {} (осталось {})",
+            side_label, attacker_name, target_name, damage, killed, target_count_after
+        );
 
         let mut events = vec![BattleEvent::Attacked {
             attacker_id,
@@ -187,8 +205,9 @@ impl BattleState {
             killed,
         }];
 
-        if target.count == 0 {
+        if target_count_after == 0 {
             self.turn_order.retain(|&id| id != target_id);
+            info!("[BATTLE] Отряд {} уничтожен.", target_name);
             events.push(BattleEvent::StackDied { id: target_id });
         }
 
@@ -210,6 +229,13 @@ impl BattleState {
 
         if let Some(&next_id) = self.turn_order.front() {
             self.current_stack_id = next_id;
+            if let Some(next) = self.stacks.iter().find(|s| s.id == next_id) {
+                let side_label = if next.side == Side::Attacker { "Атк" } else { "Защ" };
+                info!(
+                    "[BATTLE] Ход передан: {} [{}] ×{}",
+                    next.unit_type.name, side_label, next.count
+                );
+            }
             vec![BattleEvent::TurnPassed { next_id }]
         } else {
             vec![]
