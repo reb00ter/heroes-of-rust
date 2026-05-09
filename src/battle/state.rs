@@ -141,18 +141,16 @@ impl BattleState {
     pub fn attack(&mut self, target_id: StackId) -> Vec<BattleEvent> {
         let attacker_id = self.current_stack_id;
 
-        let (attacker_count, attacker_dmg, attacker_side) = {
-            let a = match self.stacks.iter().find(|s| s.id == attacker_id) {
-                Some(s) => s,
-                None => return vec![],
-            };
-            (a.count, a.unit_type.damage_per_unit, a.side)
+        let Some(a) = self.stacks.iter().find(|s| s.id == attacker_id) else {
+            return vec![];
         };
+        let (attacker_count, attacker_dmg, attacker_side) =
+            (a.count, a.unit_type.damage_per_unit, a.side);
 
-        let target_side = match self.stacks.iter().find(|s| s.id == target_id) {
-            Some(s) => s.side,
-            None => return vec![],
+        let Some(tgt) = self.stacks.iter().find(|s| s.id == target_id) else {
+            return vec![];
         };
+        let target_side = tgt.side;
 
         // Цель должна быть противоположной стороны
         if attacker_side == target_side {
@@ -160,9 +158,8 @@ impl BattleState {
         }
 
         let damage = attacker_count * attacker_dmg;
-        let target = match self.stacks.iter_mut().find(|s| s.id == target_id) {
-            Some(s) => s,
-            None => return vec![],
+        let Some(target) = self.stacks.iter_mut().find(|s| s.id == target_id) else {
+            return vec![];
         };
 
         let target_hp = target.unit_type.hp;

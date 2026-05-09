@@ -51,8 +51,7 @@ fn setup_battle(
 
     let attacker_stacks = gs
         .get_hero(pending.attacker_hero_id)
-        .map(|h| h.army.0.as_slice())
-        .unwrap_or(&[]);
+        .map_or(&[][..], |h| h.army.0.as_slice());
 
     if attacker_stacks.is_empty() {
         warn!("[BATTLE] Attacker has no army — immediate defeat.");

@@ -28,6 +28,7 @@ const COLOR_RESOURCE_PILE: Color = Color::srgb(0.95, 0.75, 0.10);
 // ---------------------------------------------------------------------------
 
 /// Создаёт тестовое состояние игры для Этапа 2: карта 16×12 с препятствиями и героем.
+#[allow(clippy::too_many_lines)]
 pub fn build_initial_game_state() -> GameState {
     let mut map = AdventureMap::new(MAP_WIDTH, MAP_HEIGHT);
 
@@ -166,7 +167,7 @@ pub fn build_initial_game_state() -> GameState {
 // Startup-система: спавн сущностей
 // ---------------------------------------------------------------------------
 
-#[allow(clippy::needless_pass_by_value)] // Res<T> — стандартный SystemParam, не может быть &Res<T>
+#[allow(clippy::needless_pass_by_value, clippy::too_many_lines)]
 pub fn startup_setup(
     mut commands: Commands,
     game_state: Res<GameStateResource>,

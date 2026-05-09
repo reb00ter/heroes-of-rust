@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::core::commands::{CommandError, GameCommand, GameEvent};
-use crate::core::hero::{Army, HeroId};
+use crate::core::hero::HeroId;
 use crate::core::map::{MapObject, Position};
 use crate::core::player::TownId;
 use crate::{PendingBattle};
@@ -209,7 +209,7 @@ fn apply_move(
                     // Не начинать бой без армии — герой должен сначала нанять войска
                     let army_empty = gs
                         .get_hero(*attacker)
-                        .map_or(true, |h| h.army.is_empty());
+                        .is_none_or(|h| h.army.is_empty());
                     if army_empty {
                         info!(
                             "[ADVENTURE] Hero has no army — cannot attack neutral stack at ({},{}).",
@@ -229,7 +229,7 @@ fn apply_move(
                                 None
                             }
                         })
-                        .unwrap_or_else(Army::new);
+                        .unwrap_or_default();
                     return MoveOutcome::Battle(PendingBattle {
                         attacker_hero_id: *attacker,
                         defender_army: army,
@@ -248,13 +248,12 @@ fn apply_move(
             if matches!(
                 gs.map.get(target).and_then(|t| t.object.as_ref()),
                 Some(MapObject::ResourcePile(_))
-            ) {
-                if let Err(e) = gs.apply(GameCommand::CollectResource { hero_id }) {
-                    warn!(
-                        "[ADVENTURE] Auto-collect failed for hero \"{}\": {:?}",
-                        hero_name, e
-                    );
-                }
+            ) && let Err(e) = gs.apply(GameCommand::CollectResource { hero_id })
+            {
+                warn!(
+                    "[ADVENTURE] Auto-collect failed for hero \"{}\": {:?}",
+                    hero_name, e
+                );
             }
             MoveOutcome::None
         }

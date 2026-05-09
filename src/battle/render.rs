@@ -66,7 +66,7 @@ fn spawn_ui_inner(commands: &mut Commands, battle: &BattleState, font: Handle<Fo
     let current_id = battle.current_stack_id;
     let is_attacker_turn = battle
         .current_stack()
-        .map_or(false, |s| s.side == Side::Attacker);
+        .is_some_and(|s| s.side == Side::Attacker);
 
     let attackers: Vec<&BattleStack> = battle
         .stacks
