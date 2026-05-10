@@ -31,10 +31,8 @@
             id:           0,
             pos:          (4,2),
             daily_income: 250,
-            recruits: [
-                (id: "peasant",   count: 10),
-                (id: "swordsman", count: 5),
-            ],
+            // Рекруты заполняются из выбранной фракции на старте игры.
+            recruits: [],
         ),
     ],
 
@@ -46,9 +44,10 @@
 
     hero: (
         pos:             (1,1),
-        name:            "Aldric",
+        // Имя и стартовая армия приходят из выбранной фракции.
+        name:            "",
         movement_points: 10,
-        army:            [(id: "peasant", count: 5)],
+        army:            [],
         starting_gold:   500,
     ),
 )

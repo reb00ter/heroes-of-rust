@@ -478,15 +478,24 @@ mod tests {
 
     #[test]
     fn load_units_parses() {
+        // После этапа 11 в units.ron остаются только нейтралы.
         let units = load_units("assets/data/units.ron");
-        assert_eq!(units.len(), 5);
-        let peasant = units
+        assert_eq!(units.len(), 3);
+        let goblin = units
             .iter()
-            .find(|u| u.id == "peasant")
-            .expect("peasant exists");
-        assert_eq!(peasant.name, "Крестьянин");
-        assert_eq!(peasant.damage, 1);
-        assert_eq!(peasant.daily_growth, 5);
+            .find(|u| u.id == "goblin")
+            .expect("goblin exists");
+        assert_eq!(goblin.name, "Гоблин");
+        assert_eq!(goblin.damage, 2);
+    }
+
+    #[test]
+    fn neutrals_still_load() {
+        let units = load_units("assets/data/units.ron");
+        let ids: std::collections::HashSet<&str> = units.iter().map(|u| u.id.as_str()).collect();
+        assert!(ids.contains("goblin"));
+        assert!(ids.contains("orc"));
+        assert!(ids.contains("troll"));
     }
 
     #[test]
@@ -556,8 +565,9 @@ mod tests {
         let town = &gs.towns[0];
         assert_eq!(town.position, Position::new(4, 2));
         assert_eq!(town.income.gold, 250);
-        // daily_growth Крестьянина должен быть 5 (из units.ron)
-        assert_eq!(town.daily_growth[0], 5);
+        // Рекруты теперь приходят из фракции, в карте их нет.
+        assert!(town.daily_growth.is_empty());
+        assert!(town.available_recruits.is_empty());
     }
 
     #[test]
@@ -566,9 +576,8 @@ mod tests {
         let hero = gs.heroes.first().expect("hero exists");
         assert_eq!(hero.position, Position::new(1, 1));
         assert_eq!(hero.movement_points, 10);
-        assert_eq!(hero.army.0.len(), 1);
-        assert_eq!(hero.army.0[0].unit_type.name, "Крестьянин");
-        assert_eq!(hero.army.0[0].count, 5);
+        // Армия и имя теперь приходят из фракции, в карте их нет.
+        assert!(hero.army.0.is_empty());
         let gold = gs.players.first().expect("player exists").resources.gold;
         assert_eq!(gold, 500);
     }

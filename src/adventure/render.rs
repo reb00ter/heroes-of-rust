@@ -447,12 +447,12 @@ mod tests {
     }
 
     #[test]
-    fn hero_has_starter_army() {
+    fn hero_has_no_army_before_faction_applied() {
+        // load_map грузит чистую карту: имя и армия героя приходят из выбранной
+        // фракции в load_map_from_config — здесь они пустые.
         let gs = build_initial_game_state();
         let hero = gs.heroes.first().expect("hero exists");
-        assert!(!hero.army.0.is_empty(), "hero must start with an army");
-        assert_eq!(hero.army.0[0].unit_type.name, "Крестьянин");
-        assert_eq!(hero.army.0[0].count, 5);
+        assert!(hero.army.0.is_empty());
     }
 
     #[test]
