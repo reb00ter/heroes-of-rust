@@ -13,7 +13,7 @@
 | `build_initial_game_state()` — карта захардкожена | `adventure/render.rs:32` | ✅ нужно вынести в файл |
 | `GameState`, `Town`, `Hero`, `Army`, `UnitType` | `core/` | ✅ без изменений |
 | `bevy` уже тянет `serde` транзитивно | `Cargo.toml` | ✅ нужно добавить `derive`-фичу и `ron` |
-| Тесты `neutral_armies_placed`, `neutral_army_blocks_movement` | `adventure/render.rs` | ✅ остаются, будут вызывать тот же `build_initial_game_state` |
+| Тесты из этапа 6 (`three_neutral_armies_on_map`, `hero_has_starter_army` и др.) | `adventure/render.rs` | ✅ остаются, будут вызывать тот же `build_initial_game_state` |
 
 ### Итог: вся игровая логика готова; нужны формат файла, загрузчик и промпт.
 
@@ -25,7 +25,7 @@
 
 ```
 src/data/mod.rs               — MapDefinition, вспомогательные Def-типы, fn load_map()
-assets/maps/default.ron       — текущая карта 16×12, точная копия build_initial_game_state
+assets/maps/default.ron       — карта этапа 6 (20×15), точная копия build_initial_game_state
 docs/map-generation-prompt.md — промпт для генерации карт через AI
 ```
 
@@ -57,34 +57,39 @@ ROADMAP.md              — добавить Этап 7 и отметить за
 ### 7.1 Формат файла (`assets/maps/default.ron`)
 
 - [ ] Создать директорию `assets/maps/`.
-- [ ] Записать текущую карту 16×12 в RON-файл, точно воспроизводя `build_initial_game_state`:
+- [ ] Записать карту этапа 6 (20×15) в RON-файл, точно воспроизводя `build_initial_game_state` после завершения этапа 6:
 
 ```ron
 (
-    width:  16,
-    height: 12,
+    width:  20,
+    height: 15,
 
+    // Только нестандартные тайлы; остальные — Ground по умолчанию
     obstacles: [
-        (3,1),(3,2),(3,3),(3,4),
-        (7,3),(7,4),(7,5),(7,6),
-        (10,2),(10,3),(11,2),
-        (13,7),(13,8),(14,7),(14,8),
-        (5,8),(5,9),(6,9),
+        (3,0),(4,0),(3,1),
+        (9,3),(9,4),(9,5),
+        (14,1),(14,2),(15,8),(15,9),
+        (6,12),(7,12),(7,13),
+        (11,11),(12,11),
     ],
-    water: [(0,10),(0,11),(1,11),(2,11),(15,0),(15,1)],
+    water: [
+        (0,13),(0,14),(1,14),(2,14),
+        (19,0),(19,1),(18,0),
+        (18,14),(19,14),(19,13),
+    ],
 
     resource_piles: [
-        (pos: (5,2),  gold: 100),
-        (pos: (2,6),  gold: 150),
-        (pos: (8,1),  gold: 200),
-        (pos: (11,6), gold: 250),
-        (pos: (4,10), gold: 100),
+        (pos: (2,5),  gold: 150),
+        (pos: (7,1),  gold: 200),
+        (pos: (10,9), gold: 250),
+        (pos: (15,3), gold: 300),
+        (pos: (18,12),gold: 200),
     ],
 
     towns: [
         (
             id:           0,
-            pos:          (12,5),
+            pos:          (4,2),
             daily_income: 250,
             recruits: [
                 (name: "Крестьянин", damage: 1, hp: 5,  cost: 25, count: 10, daily_growth: 5),
@@ -94,15 +99,16 @@ ROADMAP.md              — добавить Этап 7 и отметить за
     ],
 
     neutral_armies: [
-        (pos: (5,3),  units: [(name: "Гоблин", damage: 2, hp: 5,  cost: 0, count: 5,  daily_growth: 0)]),
-        (pos: (10,7), units: [(name: "Орк",    damage: 4, hp: 10, cost: 0, count: 3, daily_growth: 0)]),
+        (pos: (7,5),   units: [(name: "Гоблин", damage: 2, hp: 5,  cost: 0, count: 5, daily_growth: 0)]),
+        (pos: (13,6),  units: [(name: "Орк",    damage: 4, hp: 10, cost: 0, count: 4, daily_growth: 0)]),
+        (pos: (17,10), units: [(name: "Тролль", damage: 8, hp: 25, cost: 0, count: 2, daily_growth: 0)]),
     ],
 
     hero: (
         pos:             (1,1),
         name:            "Aldric",
         movement_points: 10,
-        army:            [],
+        army:            [(name: "Крестьянин", damage: 1, hp: 5, cost: 25, count: 5, daily_growth: 0)],
         starting_gold:   500,
     ),
 )
@@ -209,10 +215,10 @@ pub struct HeroDef {
 
 ### 7.5 Тесты (`src/data/mod.rs`)
 
-- [ ] `load_default_map_parses` — файл читается, `width == 16`, `height == 12`.
-- [ ] `default_map_has_correct_neutrals` — ровно 2 нейтральных отряда; позиции `(5,3)` и `(10,7)`; состав соответствует файлу.
-- [ ] `default_map_has_town` — 1 город, позиция `(12,5)`, `daily_income == 250`, 2 типа рекрутов.
-- [ ] `default_map_hero_start` — герой в позиции `(1,1)`, `movement_points == 10`, армия пустая, золото 500.
+- [ ] `load_default_map_parses` — файл читается, `width == 20`, `height == 15`.
+- [ ] `default_map_has_correct_neutrals` — ровно 3 нейтральных отряда; позиции `(7,5)`, `(13,6)`, `(17,10)`; состав соответствует файлу.
+- [ ] `default_map_has_town` — 1 город, позиция `(4,2)`, `daily_income == 250`, 2 типа рекрутов.
+- [ ] `default_map_hero_start` — герой в позиции `(1,1)`, `movement_points == 10`, армия содержит 5 Крестьян, золото 500.
 - [ ] `unknown_field_is_error` — RON с неизвестным полем верхнего уровня возвращает ошибку парсинга (проверяет что формат строгий).
 
 > Все тесты используют `std::fs` напрямую — не нужен Bevy рантайм, запускаются через `cargo test`.
@@ -235,7 +241,7 @@ pub struct HeroDef {
 ```
 assets/
 └── maps/
-    └── default.ron          — карта 16×12
+    └── default.ron          — карта 20×15 (этап 6)
 
 src/
 ├── main.rs                  — +mod data
@@ -266,7 +272,7 @@ docs/
 
 ## Критерий готовности
 
-1. `cargo run` — игра запускается, карта идентична текущей.
+1. `cargo run` — игра запускается, карта 20×15 идентична состоянию после этапа 6.
 2. `cargo test` — все тесты проходят, включая 5 новых в `src/data/`.
 3. Удаление `assets/maps/default.ron` → `cargo run` падает с понятным сообщением об ошибке.
 4. `cargo clippy -- -D warnings` и `cargo fmt --check` — чисто.

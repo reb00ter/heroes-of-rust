@@ -404,7 +404,7 @@
 ### 7.2 Формат и файл карты
 
 - [ ] Создать директорию `assets/maps/`
-- [ ] Создать `assets/maps/default.ron` — текущая карта 16×12, точная копия `build_initial_game_state`
+- [ ] Создать `assets/maps/default.ron` — карта 20×15 (этап 6), точная копия `build_initial_game_state`
 
 ### 7.3 Модуль данных (`src/data/mod.rs`)
 
