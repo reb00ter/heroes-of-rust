@@ -1,31 +1,15 @@
+use std::collections::{HashMap, HashSet};
+
 use bevy::prelude::*;
 
-use crate::core::map::MapObject;
+use crate::core::hero::HeroId;
+use crate::core::map::{MapObject, Position};
 
 use super::{
-    ArmyText, DayText, GameStateResource, GoldText, HeroMarker, MovementHighlight,
-    MovementPointsText, ResourcePileMarker, TILE_SIZE, grid_to_world,
+    ArmyText, DayText, GameStateResource, GoldText, HeroMarker, MAP_HEIGHT, MAP_WIDTH,
+    MovementHighlight, MovementPointsText, NeutralArmyMarker, ResourcePileMarker, TILE_SIZE,
+    grid_to_world, spawn_gold_pile, spawn_hero, spawn_neutral_army,
 };
-
-// ---------------------------------------------------------------------------
-// Синхронизация позиции героя
-// ---------------------------------------------------------------------------
-
-/// Обновляет `Transform` сущности героя в соответствии с `hero.position` из `GameState`.
-#[allow(clippy::needless_pass_by_value)]
-pub fn sync_hero_transform(
-    game_state: Res<GameStateResource>,
-    mut hero_q: Query<(&HeroMarker, &mut Transform)>,
-) {
-    let gs = &game_state.0;
-    for (marker, mut transform) in &mut hero_q {
-        if let Some(hero) = gs.get_hero(marker.0) {
-            let world = grid_to_world(hero.position);
-            transform.translation.x = world.x;
-            transform.translation.y = world.y;
-        }
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Подсветка доступных ходов
@@ -70,28 +54,93 @@ pub fn update_available_moves(
 }
 
 // ---------------------------------------------------------------------------
-// Синхронизация кучек ресурсов
+// Синхронизация динамических объектов карты
 // ---------------------------------------------------------------------------
 
-/// Удаляет спрайты кучек, которые уже были собраны.
+/// Сверяет entity на сцене с `GameState` и приводит их в соответствие.
+/// Запускается каждый кадр, но реально работает только при изменении `GameState`.
+///
+/// Принцип: визуальное состояние = функция от игрового состояния.
+/// Явного «сброса карты» не нужно — эта система делает всё сама.
 #[allow(clippy::needless_pass_by_value)]
-pub fn sync_resource_piles(
+pub fn sync_map_objects(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     game_state: Res<GameStateResource>,
-    piles_q: Query<(Entity, &ResourcePileMarker)>,
+    pile_q: Query<(Entity, &ResourcePileMarker)>,
+    army_q: Query<(Entity, &NeutralArmyMarker)>,
+    mut hero_q: Query<(Entity, &HeroMarker, &mut Transform)>,
 ) {
     if !game_state.is_changed() {
         return;
     }
-
     let gs = &game_state.0;
-    for (entity, marker) in &piles_q {
-        let has_pile = matches!(
+
+    // --- Кучки золота ---
+    let pile_entities: HashMap<Position, Entity> = pile_q.iter().map(|(e, m)| (m.0, e)).collect();
+
+    #[allow(clippy::cast_possible_wrap)]
+    for y in 0..MAP_HEIGHT {
+        for x in 0..MAP_WIDTH {
+            let pos = Position::new(x as i32, y as i32);
+            if matches!(
+                gs.map.get(pos).and_then(|t| t.object.as_ref()),
+                Some(MapObject::ResourcePile(_))
+            ) && !pile_entities.contains_key(&pos)
+            {
+                spawn_gold_pile(&mut commands, &asset_server, pos);
+            }
+        }
+    }
+    for (entity, marker) in &pile_q {
+        if !matches!(
             gs.map.get(marker.0).and_then(|t| t.object.as_ref()),
             Some(MapObject::ResourcePile(_))
-        );
-        if !has_pile {
+        ) {
             commands.entity(entity).despawn();
+        }
+    }
+
+    // --- Нейтральные отряды ---
+    let army_entities: HashMap<Position, Entity> = army_q.iter().map(|(e, m)| (m.0, e)).collect();
+
+    #[allow(clippy::cast_possible_wrap)]
+    for y in 0..MAP_HEIGHT {
+        for x in 0..MAP_WIDTH {
+            let pos = Position::new(x as i32, y as i32);
+            if matches!(
+                gs.map.get(pos).and_then(|t| t.object.as_ref()),
+                Some(MapObject::NeutralArmy(_))
+            ) && !army_entities.contains_key(&pos)
+            {
+                spawn_neutral_army(&mut commands, pos);
+            }
+        }
+    }
+    for (entity, marker) in &army_q {
+        if !matches!(
+            gs.map.get(marker.0).and_then(|t| t.object.as_ref()),
+            Some(MapObject::NeutralArmy(_))
+        ) {
+            commands.entity(entity).despawn();
+        }
+    }
+
+    // --- Герой ---
+    // За один проход: обновляем Transform существующих entity и собираем их ID.
+    // Затем спауним тех, кого ещё нет.
+    let mut seen_ids: HashSet<HeroId> = HashSet::new();
+    for (_, marker, mut transform) in &mut hero_q {
+        if let Some(hero) = gs.heroes.iter().find(|h| h.id == marker.0) {
+            let world = grid_to_world(hero.position);
+            transform.translation.x = world.x;
+            transform.translation.y = world.y;
+            seen_ids.insert(marker.0);
+        }
+    }
+    for hero in &gs.heroes {
+        if !seen_ids.contains(&hero.id) {
+            spawn_hero(&mut commands, hero);
         }
     }
 }

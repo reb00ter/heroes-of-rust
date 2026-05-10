@@ -5,8 +5,8 @@ mod sync;
 use bevy::prelude::*;
 
 use crate::GameScreen;
-use crate::core::hero::HeroId;
-use crate::core::map::{MapObject, Position};
+use crate::core::hero::{Hero, HeroId};
+use crate::core::map::Position;
 use crate::core::player::TownId;
 
 pub use render::build_initial_game_state;
@@ -90,92 +90,57 @@ pub struct GoldText;
 #[derive(Component)]
 pub struct DayText;
 
-/// Маркер-ресурс: при следующем входе в Adventure пересоздать спрайты объектов карты.
-/// Вставляется при нажатии «Играть снова» из экрана `GameOver`.
-#[derive(Resource, Default)]
-pub struct NeedsMapReset;
-
 // ---------------------------------------------------------------------------
-// Системы сброса карты и проверки победы
+// Spawn-хелперы: единственное место, где задаётся внешний вид каждого объекта
 // ---------------------------------------------------------------------------
 
-/// При перезапуске из `GameOver` — пересоздаёт спрайты объектов карты.
-/// Запускается первым в `OnEnter(GameScreen::Adventure)`.
-#[allow(clippy::needless_pass_by_value)]
-fn reset_map_on_restart(
-    mut commands: Commands,
-    reset: Option<Res<NeedsMapReset>>,
-    game_state: Res<GameStateResource>,
-    pile_q: Query<Entity, With<ResourcePileMarker>>,
-    neutral_q: Query<Entity, With<NeutralArmyMarker>>,
-    hero_q: Query<Entity, With<HeroMarker>>,
-) {
-    let Some(_) = reset else {
-        return;
-    };
-    commands.remove_resource::<NeedsMapReset>();
-
-    // Удалить старые спрайты
-    for e in &pile_q {
-        commands.entity(e).despawn();
-    }
-    for e in &neutral_q {
-        commands.entity(e).despawn();
-    }
-    for e in &hero_q {
-        commands.entity(e).despawn();
-    }
-
-    // Пересоздать из сброшенного GameState
-    let gs = &game_state.0;
-    #[allow(clippy::cast_possible_wrap)]
-    for y in 0..MAP_HEIGHT {
-        for x in 0..MAP_WIDTH {
-            let pos = Position::new(x as i32, y as i32);
-            match gs.map.get(pos).and_then(|t| t.object.as_ref()) {
-                Some(MapObject::ResourcePile(_)) => {
-                    let world = grid_to_world(pos);
-                    commands.spawn((
-                        Sprite {
-                            color: Color::srgb(0.95, 0.75, 0.10),
-                            custom_size: Some(Vec2::splat(TILE_SIZE * 0.5)),
-                            ..default()
-                        },
-                        Transform::from_xyz(world.x, world.y, 1.0),
-                        ResourcePileMarker(pos),
-                    ));
-                }
-                Some(MapObject::NeutralArmy(_)) => {
-                    let world = grid_to_world(pos);
-                    commands.spawn((
-                        Sprite {
-                            color: Color::srgb(0.85, 0.15, 0.15),
-                            custom_size: Some(Vec2::splat(TILE_SIZE * 0.75)),
-                            ..default()
-                        },
-                        Transform::from_xyz(world.x, world.y, 1.0),
-                        NeutralArmyMarker(pos),
-                    ));
-                }
-                _ => {}
-            }
-        }
-    }
-
-    // Пересоздать героя
-    if let Some(hero) = gs.heroes.first() {
-        let world = grid_to_world(hero.position);
-        commands.spawn((
-            Sprite {
-                color: Color::srgb(0.95, 0.80, 0.10),
-                custom_size: Some(Vec2::splat(TILE_SIZE * 0.65)),
-                ..default()
-            },
-            Transform::from_xyz(world.x, world.y, 4.0),
-            HeroMarker(hero.id),
-        ));
-    }
+/// Спаунит спрайт кучки золота. Вызывается из `sync_map_objects`.
+pub(super) fn spawn_gold_pile(commands: &mut Commands, asset_server: &AssetServer, pos: Position) {
+    let world = grid_to_world(pos);
+    // AssetServer кэширует хэндлы по пути — повторные load() дёшевы
+    let tex: Handle<Image> = asset_server.load("sprites/gold_pile.png");
+    commands.spawn((
+        Sprite {
+            image: tex,
+            custom_size: Some(Vec2::splat(TILE_SIZE * 0.9)),
+            ..default()
+        },
+        Transform::from_xyz(world.x, world.y, 1.0),
+        ResourcePileMarker(pos),
+    ));
 }
+
+/// Спаунит спрайт нейтрального отряда. Вызывается из `sync_map_objects`.
+pub(super) fn spawn_neutral_army(commands: &mut Commands, pos: Position) {
+    let world = grid_to_world(pos);
+    commands.spawn((
+        Sprite {
+            color: Color::srgb(0.85, 0.15, 0.15),
+            custom_size: Some(Vec2::splat(TILE_SIZE * 0.75)),
+            ..default()
+        },
+        Transform::from_xyz(world.x, world.y, 1.0),
+        NeutralArmyMarker(pos),
+    ));
+}
+
+/// Спаунит спрайт героя. Вызывается из `sync_map_objects`.
+pub(super) fn spawn_hero(commands: &mut Commands, hero: &Hero) {
+    let world = grid_to_world(hero.position);
+    commands.spawn((
+        Sprite {
+            color: Color::srgb(0.95, 0.80, 0.10),
+            custom_size: Some(Vec2::splat(TILE_SIZE * 0.65)),
+            ..default()
+        },
+        Transform::from_xyz(world.x, world.y, 4.0),
+        HeroMarker(hero.id),
+    ));
+}
+
+// ---------------------------------------------------------------------------
+// Системы
+// ---------------------------------------------------------------------------
 
 /// Если после боя установлен `GameOverResult` — немедленно переходить на `GameOver`.
 /// Запускается вторым в `OnEnter(GameScreen::Adventure)`, после `reset_map_on_restart`.
@@ -237,12 +202,7 @@ impl Plugin for AdventurePlugin {
             .add_systems(Startup, render::startup_setup)
             .add_systems(
                 OnEnter(GameScreen::Adventure),
-                (
-                    reset_map_on_restart,
-                    check_game_over,
-                    render::show_result_banner,
-                )
-                    .chain(),
+                (check_game_over, render::show_result_banner).chain(),
             )
             .add_systems(
                 Update,
@@ -251,8 +211,7 @@ impl Plugin for AdventurePlugin {
                     input::mouse_click_input,
                     input::handle_end_turn,
                     input::update_hover_highlight,
-                    sync::sync_hero_transform,
-                    sync::sync_resource_piles,
+                    sync::sync_map_objects,
                     sync::update_available_moves,
                     sync::update_movement_ui,
                     sync::update_resource_ui,

@@ -143,9 +143,6 @@ fn handle_gameover_input(
             // Убрать результат
             commands.remove_resource::<GameOverResult>();
 
-            // Вставить маркер сброса карты
-            commands.insert_resource(crate::adventure::NeedsMapReset);
-
             // Переход на карту
             next_state.set(GameScreen::Adventure);
         }

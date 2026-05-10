@@ -7,9 +7,8 @@ use crate::core::resources::ResourceBag;
 use crate::core::state::GameState;
 
 use super::{
-    ArmyText, BannerKind, DayText, GameStateResource, GoldText, HeroMarker, HoverHighlight,
-    MAP_HEIGHT, MAP_WIDTH, MovementPointsText, NeutralArmyMarker, ResourcePileMarker, ShowBanner,
-    TILE_SIZE, TileMarker, TownMarker, grid_to_world,
+    ArmyText, BannerKind, DayText, GameStateResource, GoldText, HoverHighlight, MAP_HEIGHT,
+    MAP_WIDTH, MovementPointsText, ShowBanner, TILE_SIZE, TileMarker, TownMarker, grid_to_world,
 };
 
 // ---------------------------------------------------------------------------
@@ -19,7 +18,6 @@ use super::{
 const COLOR_GROUND: Color = Color::srgb(0.20, 0.55, 0.20);
 const COLOR_OBSTACLE: Color = Color::srgb(0.45, 0.45, 0.45);
 const COLOR_WATER: Color = Color::srgb(0.15, 0.35, 0.80);
-const COLOR_HERO: Color = Color::srgb(0.95, 0.80, 0.10);
 const COLOR_HOVER: Color = Color::srgba(1.0, 1.0, 1.0, 0.30);
 
 // ---------------------------------------------------------------------------
@@ -197,7 +195,7 @@ pub fn build_initial_game_state() -> GameState {
 }
 
 // ---------------------------------------------------------------------------
-// Startup-система: спавн сущностей
+// Startup-система: спавн сущностей (только статика)
 // ---------------------------------------------------------------------------
 
 #[allow(clippy::needless_pass_by_value, clippy::too_many_lines)]
@@ -208,8 +206,6 @@ pub fn startup_setup(
 ) {
     let gs = &game_state.0;
     let font: Handle<Font> = asset_server.load("fonts/Roboto-Regular.ttf");
-    // Спрайт кучки золота — генерируется из SVG при сборке (build.rs + resvg)
-    let gold_pile_tex: Handle<Image> = asset_server.load("sprites/gold_pile.png");
 
     // Камера по центру карты (мировой центр = (0,0))
     commands.spawn(Camera2d);
@@ -242,30 +238,7 @@ pub fn startup_setup(
         }
     }
 
-    // --- Кучки золота (Z=1) ---
-    #[allow(clippy::cast_possible_wrap)]
-    for y in 0..MAP_HEIGHT {
-        for x in 0..MAP_WIDTH {
-            let pos = crate::core::map::Position::new(x as i32, y as i32);
-            if matches!(
-                gs.map.get(pos).and_then(|t| t.object.as_ref()),
-                Some(MapObject::ResourcePile(_))
-            ) {
-                let world = grid_to_world(pos);
-                commands.spawn((
-                    Sprite {
-                        image: gold_pile_tex.clone(),
-                        custom_size: Some(Vec2::splat(TILE_SIZE * 0.9)),
-                        ..default()
-                    },
-                    Transform::from_xyz(world.x, world.y, 1.0),
-                    ResourcePileMarker(pos),
-                ));
-            }
-        }
-    }
-
-    // --- Города (Z=1) ---
+    // --- Города (Z=1, статика — не меняются в текущей версии) ---
     for town in &gs.towns {
         let world = grid_to_world(town.position);
         commands.spawn((
@@ -276,43 +249,6 @@ pub fn startup_setup(
             },
             Transform::from_xyz(world.x, world.y, 1.0),
             TownMarker(town.id),
-        ));
-    }
-
-    // --- Нейтральные отряды (Z=1) ---
-    #[allow(clippy::cast_possible_wrap)]
-    for y in 0..MAP_HEIGHT {
-        for x in 0..MAP_WIDTH {
-            let pos = crate::core::map::Position::new(x as i32, y as i32);
-            if matches!(
-                gs.map.get(pos).and_then(|t| t.object.as_ref()),
-                Some(MapObject::NeutralArmy(_))
-            ) {
-                let world = grid_to_world(pos);
-                commands.spawn((
-                    Sprite {
-                        color: Color::srgb(0.85, 0.15, 0.15),
-                        custom_size: Some(Vec2::splat(TILE_SIZE * 0.75)),
-                        ..default()
-                    },
-                    Transform::from_xyz(world.x, world.y, 1.0),
-                    NeutralArmyMarker(pos),
-                ));
-            }
-        }
-    }
-
-    // --- Герой (Z=4) ---
-    if let Some(hero) = gs.heroes.first() {
-        let world = grid_to_world(hero.position);
-        commands.spawn((
-            Sprite {
-                color: COLOR_HERO,
-                custom_size: Some(Vec2::splat(TILE_SIZE * 0.65)),
-                ..default()
-            },
-            Transform::from_xyz(world.x, world.y, 4.0),
-            HeroMarker(hero.id),
         ));
     }
 
