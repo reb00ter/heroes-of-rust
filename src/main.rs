@@ -5,6 +5,7 @@ mod battle;
 mod core;
 mod data;
 mod gameover;
+mod menu;
 mod town;
 
 use adventure::AdventurePlugin;
@@ -13,16 +14,25 @@ use bevy::prelude::*;
 use core::hero::{Army, HeroId};
 use core::map::Position;
 use gameover::GameOverPlugin;
+use menu::MainMenuPlugin;
 use town::TownPlugin;
 
-/// Экран игры — переключается при входе в город/бой и выходе.
+/// Экран игры — переключается при входе в город/бой/меню.
 #[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub enum GameScreen {
     #[default]
+    MainMenu,
     Adventure,
     Town,
     Battle,
     GameOver,
+}
+
+/// Параметры запуска игры — заполняются главным меню, читаются в `OnEnter(Adventure)`.
+#[derive(Resource)]
+pub struct GameStartConfig {
+    pub map_path: String,
+    pub hero_name: String,
 }
 
 /// Данные боя, передаваемые из Adventure в Battle при переходе состояния.
@@ -51,6 +61,7 @@ fn main() {
         }))
         .insert_resource(ClearColor(Color::srgb(0.08, 0.08, 0.12)))
         .init_state::<GameScreen>()
+        .add_plugins(MainMenuPlugin)
         .add_plugins(AdventurePlugin)
         .add_plugins(TownPlugin)
         .add_plugins(BattlePlugin)

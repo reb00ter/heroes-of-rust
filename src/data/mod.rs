@@ -1,4 +1,4 @@
-use bevy::log::info;
+use bevy::log::{info, warn};
 
 use crate::core::hero::{Army, Hero, HeroId, UnitStack, UnitType};
 use crate::core::map::{AdventureMap, MapObject, Position, TileKind};
@@ -36,6 +36,9 @@ pub struct StackRef {
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MapDefinition {
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
     pub width: u32,
     pub height: u32,
     pub obstacles: Vec<(i32, i32)>,
@@ -76,6 +79,22 @@ pub struct HeroDef {
 }
 
 // ---------------------------------------------------------------------------
+// Метаинформация о карте (результат валидации)
+// ---------------------------------------------------------------------------
+
+/// Метаданные карты — возвращаются `discover_maps` и `validate_map`.
+#[derive(Clone, Debug)]
+pub struct MapInfo {
+    pub path: String,
+    pub name: String,
+    pub description: String,
+    pub width: u32,
+    pub height: u32,
+    pub neutral_count: usize,
+    pub town_count: usize,
+}
+
+// ---------------------------------------------------------------------------
 // Публичные функции загрузки
 // ---------------------------------------------------------------------------
 
@@ -94,6 +113,145 @@ pub fn load_map(map_path: &str, units_path: &str) -> GameState {
     let def: MapDefinition = ron::from_str(&content)
         .unwrap_or_else(|e| panic!("Failed to parse map file '{map_path}': {e}"));
     map_def_to_game_state(&def, &units)
+}
+
+/// Сканирует директорию, валидирует каждый `*.ron` файл.
+/// Невалидные файлы логируются через `warn!` и пропускаются.
+pub fn discover_maps(maps_dir: &str, units: &[UnitTypeDef]) -> Vec<MapInfo> {
+    let Ok(entries) = std::fs::read_dir(maps_dir) else {
+        warn!("[DATA] Cannot read maps directory '{maps_dir}'");
+        return Vec::new();
+    };
+
+    let mut result = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("ron") {
+            continue;
+        }
+        let path_str = path.to_string_lossy().into_owned();
+        match validate_map_content_from_file(&path_str, units) {
+            Ok(info) => result.push(info),
+            Err(reason) => warn!("[DATA] Map '{}' skipped: {}", path_str, reason),
+        }
+    }
+    result
+}
+
+// ---------------------------------------------------------------------------
+// Валидация карты
+// ---------------------------------------------------------------------------
+
+/// Читает файл по пути и валидирует содержимое. Возвращает `MapInfo` или описание ошибки.
+fn validate_map_content_from_file(path: &str, units: &[UnitTypeDef]) -> Result<MapInfo, String> {
+    let content = std::fs::read_to_string(path).map_err(|e| format!("Cannot read file: {e}"))?;
+    validate_map_content(&content, path, units)
+}
+
+/// Парсит RON-строку и выполняет семантическую валидацию карты.
+fn validate_map_content(
+    content: &str,
+    path: &str,
+    units: &[UnitTypeDef],
+) -> Result<MapInfo, String> {
+    let def: MapDefinition = ron::from_str(content).map_err(|e| format!("Parse error: {e}"))?;
+
+    if def.name.is_empty() {
+        return Err("Map name is empty".to_string());
+    }
+
+    // Все id существ должны быть в справочнике
+    for army_def in &def.neutral_armies {
+        for stack in &army_def.units {
+            if !units.iter().any(|u| u.id == stack.id) {
+                return Err(format!("Unknown unit: {}", stack.id));
+            }
+        }
+    }
+    for town_def in &def.towns {
+        for stack in &town_def.recruits {
+            if !units.iter().any(|u| u.id == stack.id) {
+                return Err(format!("Unknown unit: {}", stack.id));
+            }
+        }
+    }
+    for stack in &def.hero.army {
+        if !units.iter().any(|u| u.id == stack.id) {
+            return Err(format!("Unknown unit: {}", stack.id));
+        }
+    }
+
+    // Позиции всех объектов — в пределах карты
+    #[allow(clippy::cast_possible_wrap)]
+    let w = def.width as i32;
+    #[allow(clippy::cast_possible_wrap)]
+    let h = def.height as i32;
+    let in_bounds = |x: i32, y: i32| x >= 0 && y >= 0 && x < w && y < h;
+
+    for pile in &def.resource_piles {
+        if !in_bounds(pile.pos.0, pile.pos.1) {
+            return Err(format!("ResourcePile out of bounds: {:?}", pile.pos));
+        }
+    }
+    for town_def in &def.towns {
+        if !in_bounds(town_def.pos.0, town_def.pos.1) {
+            return Err(format!(
+                "Town {} out of bounds: {:?}",
+                town_def.id, town_def.pos
+            ));
+        }
+    }
+    for army_def in &def.neutral_armies {
+        if !in_bounds(army_def.pos.0, army_def.pos.1) {
+            return Err(format!("NeutralArmy out of bounds: {:?}", army_def.pos));
+        }
+    }
+    let (hx, hy) = def.hero.pos;
+    if !in_bounds(hx, hy) {
+        return Err(format!("Hero out of bounds: {:?}", def.hero.pos));
+    }
+
+    // Объекты не стоят на Obstacle/Water тайлах
+    let obstacle_set: std::collections::HashSet<(i32, i32)> =
+        def.obstacles.iter().copied().collect();
+    let water_set: std::collections::HashSet<(i32, i32)> = def.water.iter().copied().collect();
+    let not_passable =
+        |x: i32, y: i32| obstacle_set.contains(&(x, y)) || water_set.contains(&(x, y));
+
+    for pile in &def.resource_piles {
+        if not_passable(pile.pos.0, pile.pos.1) {
+            return Err(format!("ResourcePile on impassable tile: {:?}", pile.pos));
+        }
+    }
+    for town_def in &def.towns {
+        if not_passable(town_def.pos.0, town_def.pos.1) {
+            return Err(format!(
+                "Town {} on impassable tile: {:?}",
+                town_def.id, town_def.pos
+            ));
+        }
+    }
+    for army_def in &def.neutral_armies {
+        if not_passable(army_def.pos.0, army_def.pos.1) {
+            return Err(format!(
+                "NeutralArmy on impassable tile: {:?}",
+                army_def.pos
+            ));
+        }
+    }
+    if not_passable(hx, hy) {
+        return Err(format!("Hero on impassable tile: {:?}", def.hero.pos));
+    }
+
+    Ok(MapInfo {
+        path: path.to_string(),
+        name: def.name.clone(),
+        description: def.description.clone(),
+        width: def.width,
+        height: def.height,
+        neutral_count: def.neutral_armies.len(),
+        town_count: def.towns.len(),
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -320,7 +478,7 @@ mod tests {
     #[test]
     fn unknown_field_in_map_is_error() {
         let bad_ron = r#"(
-            width: 5, height: 5,
+            name: "Test", width: 5, height: 5,
             obstacles: [], water: [],
             resource_piles: [], towns: [], neutral_armies: [],
             hero: (pos: (0,0), name: "X", movement_points: 5, army: [], starting_gold: 0),
@@ -328,5 +486,81 @@ mod tests {
         )"#;
         let result = ron::from_str::<MapDefinition>(bad_ron);
         assert!(result.is_err(), "expected parse error for unknown field");
+    }
+
+    // --- Новые тесты этапа 8 ---
+
+    #[test]
+    fn discover_maps_finds_default() {
+        let units = load_units("assets/data/units.ron");
+        let maps = discover_maps("assets/maps/", &units);
+        assert!(!maps.is_empty(), "должна найти хотя бы одну карту");
+        assert!(
+            maps.iter().any(|m| m.name == "Равнины начала"),
+            "должна найти default.ron"
+        );
+    }
+
+    #[test]
+    fn valid_map_passes_validation() {
+        let units = load_units("assets/data/units.ron");
+        let info =
+            validate_map_content_from_file("assets/maps/default.ron", &units).expect("valid map");
+        assert_eq!(info.width, 20);
+        assert_eq!(info.height, 15);
+        assert!(!info.name.is_empty(), "name must be non-empty");
+        assert_eq!(info.neutral_count, 3);
+        assert_eq!(info.town_count, 1);
+    }
+
+    #[test]
+    fn missing_unit_id_fails_validation() {
+        let units = load_units("assets/data/units.ron");
+        let ron = r#"(
+            name: "Bad Map",
+            width: 5, height: 5,
+            obstacles: [], water: [],
+            resource_piles: [],
+            towns: [],
+            neutral_armies: [(pos: (2,2), units: [(id: "dragon", count: 1)])],
+            hero: (pos: (0,0), name: "X", movement_points: 5, army: [], starting_gold: 0),
+        )"#;
+        let result = validate_map_content(ron, "test", &units);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dragon"));
+    }
+
+    #[test]
+    fn out_of_bounds_position_fails() {
+        let units = load_units("assets/data/units.ron");
+        let ron = r#"(
+            name: "Bad Map",
+            width: 5, height: 5,
+            obstacles: [], water: [],
+            resource_piles: [(pos: (10,10), gold: 100)],
+            towns: [],
+            neutral_armies: [],
+            hero: (pos: (0,0), name: "X", movement_points: 5, army: [], starting_gold: 0),
+        )"#;
+        let result = validate_map_content(ron, "test", &units);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("out of bounds"));
+    }
+
+    #[test]
+    fn object_on_obstacle_fails() {
+        let units = load_units("assets/data/units.ron");
+        let ron = r#"(
+            name: "Bad Map",
+            width: 5, height: 5,
+            obstacles: [(2,2)], water: [],
+            resource_piles: [(pos: (2,2), gold: 100)],
+            towns: [],
+            neutral_armies: [],
+            hero: (pos: (0,0), name: "X", movement_points: 5, army: [], starting_gold: 0),
+        )"#;
+        let result = validate_map_content(ron, "test", &units);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("impassable"));
     }
 }

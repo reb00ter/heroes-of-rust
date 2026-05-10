@@ -450,7 +450,7 @@
 
 ---
 
-## Этап 8 — Экран запуска ⬜
+## Этап 8 — Экран запуска ✅
 
 **Цель:** главное меню перед игрой — ввести имя героя, выбрать карту из доступных; некорректная карта показывает ошибку, не ронит приложение.
 
@@ -458,34 +458,34 @@
 
 ### 8.1 Валидация и сканирование карт (`src/data/mod.rs`)
 
-- [ ] `MapEntry`, `MapInfo`, `MapEntryResult` — типы результата сканирования
-- [ ] `discover_maps(dir) -> Vec<MapEntry>` — перебирает `*.ron` в папке
-- [ ] `validate_map(path, units) -> Result<MapInfo, String>` — парсинг + семантические проверки (id юнитов, позиции, тайлы)
+- [x] `MapEntry`, `MapInfo`, `MapEntryResult` — типы результата сканирования
+- [x] `discover_maps(dir) -> Vec<MapEntry>` — перебирает `*.ron` в папке
+- [x] `validate_map(path, units) -> Result<MapInfo, String>` — парсинг + семантические проверки (id юнитов, позиции, тайлы)
 
 ### 8.2 Ресурс конфигурации старта (`main.rs`)
 
-- [ ] `GameStartConfig { map_path, hero_name }` — заполняется меню, читается в `OnEnter(Adventure)`
-- [ ] `GameScreen::MainMenu` — новый `#[default]` вместо `Adventure`
+- [x] `GameStartConfig { map_path, hero_name }` — заполняется меню, читается в `OnEnter(Adventure)`
+- [x] `GameScreen::MainMenu` — новый `#[default]` вместо `Adventure`
 
 ### 8.3 Главное меню (`src/menu/mod.rs`)
 
-- [ ] `setup_menu` / `despawn_menu` (OnEnter/OnExit MainMenu)
-- [ ] Поле ввода имени героя (ReceivedCharacter + Backspace, ≤20 символов)
-- [ ] Список карт: валидные — кликабельны с мета-инфо; невалидные — серые с ошибкой
-- [ ] Кнопка «Начать игру» — активна если имя ≠ "" и карта выбрана
-- [ ] «Играть снова» в `gameover.rs` → `MainMenu`
+- [x] `setup_menu` / `despawn_menu` (OnEnter/OnExit MainMenu)
+- [x] Поле ввода имени героя (ReceivedCharacter + Backspace, ≤20 символов)
+- [x] Список карт: валидные — кликабельны с мета-инфо; невалидные — серые с ошибкой
+- [x] Кнопка «Начать игру» — активна если имя ≠ "" и карта выбрана
+- [x] «Играть снова» в `gameover.rs` → `MainMenu`
 
 ### 8.4 Интеграция с Adventure
 
-- [ ] `OnEnter(Adventure)` читает `GameStartConfig`, вызывает `load_map`, подставляет имя героя
+- [x] `OnEnter(Adventure)` читает `GameStartConfig`, вызывает `load_map`, подставляет имя героя
 
 ### 8.5 Тесты (`src/data/mod.rs`)
 
-- [ ] `discover_maps_finds_default`
-- [ ] `valid_map_passes_validation`
-- [ ] `missing_unit_id_fails_validation`
-- [ ] `out_of_bounds_position_fails`
-- [ ] `object_on_obstacle_fails`
+- [x] `discover_maps_finds_default`
+- [x] `valid_map_passes_validation`
+- [x] `missing_unit_id_fails_validation`
+- [x] `out_of_bounds_position_fails`
+- [x] `object_on_obstacle_fails`
 
 **Критерий готовности:** приложение стартует в меню; невалидный RON показывает ошибку без краша; игра стартует с выбранной картой и введённым именем.
 
