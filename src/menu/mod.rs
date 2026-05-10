@@ -188,12 +188,11 @@ fn setup_menu(
                 Button,
                 Node {
                     width: Val::Px(148.0),
-                    height: Val::Px(190.0),
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::FlexStart,
                     padding: UiRect::all(Val::Px(8.0)),
-                    row_gap: Val::Px(6.0),
+                    row_gap: Val::Px(4.0),
                     border: UiRect::all(Val::Px(2.0)),
                     ..default()
                 },
@@ -216,7 +215,7 @@ fn setup_menu(
                 ImageNode::new(portrait_tex),
                 Node {
                     width: Val::Px(128.0),
-                    height: Val::Px(160.0),
+                    height: Val::Px(100.0),
                     ..default()
                 },
             ))
@@ -235,11 +234,11 @@ fn setup_menu(
             ))
             .id();
 
-        // Характеристики
+        // Характеристики — без эмодзи, только ASCII
         let stats_text = commands
             .spawn((
                 Text::new(format!(
-                    "⚔{} 🛡{} 👁{}",
+                    "Атк:{} Защ:{} Обз:{}",
                     hero_def.attack, hero_def.defense, hero_def.sight_range
                 )),
                 TextFont {

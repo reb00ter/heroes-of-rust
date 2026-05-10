@@ -284,7 +284,7 @@ pub(super) fn spawn_adventure_ui(
     // Характеристики героя под портретом
     let (atk, def) = gs.heroes.first().map_or((0, 0), |h| (h.attack, h.defense));
     commands.spawn((
-        Text::new(format!("⚔{atk}  🛡{def}")),
+        Text::new(format!("Атк:{atk}  Защ:{def}")),
         TextFont {
             font,
             font_size: 18.0,
