@@ -136,6 +136,7 @@
 #[derive(Component)] struct HeroNameInput;
 #[derive(Component)] struct MapListItem { path: String, valid: bool }
 #[derive(Component)] struct StartButton;
+#[derive(Component)] struct RandomNameButton;
 ```
 
 **Локальный ресурс состояния меню:**
@@ -153,7 +154,7 @@ struct MenuState {
 `setup_menu` (в `OnEnter(GameScreen::MainMenu)`):
 - [ ] Полноэкранный фон.
 - [ ] Заголовок `"Heroes of Rust"`.
-- [ ] Поле ввода имени героя (placeholder `"Введите имя героя"`).
+- [ ] Поле ввода имени героя (placeholder `"Введите имя героя"`) + кнопка `"🎲"` рядом.
 - [ ] Список карт: одна кнопка на карту (только валидные).
   - Строка 1: `name` + `20×15 | нейтралов: 3 | замков: 1`.
   - Строка 2: `description` (меньший шрифт).
@@ -183,9 +184,38 @@ struct MenuState {
   1. Вставить `GameStartConfig { map_path, hero_name }`.
   2. Перейти в `GameScreen::Adventure`.
 
+`handle_random_name_button` (в `Update`, `in_state(MainMenu)`):
+- [ ] При клике на `RandomNameButton` — вызвать `name_gen::generate()`, записать результат
+  в `MenuState.hero_name` и обновить текст `HeroNameInput`.
+
 ---
 
-### 8.5 Интеграция с Adventure (`adventure/mod.rs`, `adventure/render.rs`)
+### 8.5 Генератор имён (`src/menu/name_gen.rs`)
+
+Отдельный файл без зависимостей от Bevy.
+
+```rust
+pub fn generate(rng: &mut impl rand::Rng) -> String
+```
+
+- [ ] Два массива слогов:
+  ```rust
+  const PREFIXES: &[&str] = &[
+      "Al", "Bran", "Dar", "El", "Gar", "Mal", "Ser", "Tor", "Val", "Wyn",
+  ];
+  const SUFFIXES: &[&str] = &[
+      "a", "dor", "en", "ian", "is", "mir", "on", "ric", "us", "wen",
+  ];
+  ```
+- [ ] Логика: случайный префикс + случайный суффикс → `"Aldor"`, `"Branwen"`, …
+- [ ] Результат не длиннее 20 символов (ограничение поля ввода).
+
+> `rand` уже нужен как зависимость; добавить в `Cargo.toml` если отсутствует.
+> `Rng` передаётся извне — функция детерминирована при фиксированном seed (удобно для тестов).
+
+---
+
+### 8.7 Интеграция с Adventure (`adventure/mod.rs`, `adventure/render.rs`)
 
 - [ ] В `OnEnter(GameScreen::Adventure)`:
   - Читать `GameStartConfig`.
@@ -196,13 +226,19 @@ struct MenuState {
 
 ---
 
-### 8.6 Тесты (`src/data/mod.rs`)
+### 8.8 Тесты
 
+**`src/data/mod.rs`:**
 - [ ] `discover_maps_finds_default` — `discover_maps("assets/maps/", &units)` возвращает ≥1 записи.
 - [ ] `valid_map_passes_validation` — `default.ron` проходит валидацию; `MapInfo` содержит корректные размеры, `name` непустой.
 - [ ] `missing_unit_id_fails_validation` — карта с `id: "dragon"` (нет в справочнике) → `Err`.
 - [ ] `out_of_bounds_position_fails` — карта с объектом за пределами `width×height` → `Err`.
 - [ ] `object_on_obstacle_fails` — карта с объектом на `Obstacle`-тайле → `Err`.
+
+**`src/menu/name_gen.rs`:**
+- [ ] `generate_returns_nonempty` — `generate(&mut rng)` возвращает непустую строку.
+- [ ] `generate_respects_length_limit` — длина результата ≤ 20 символов.
+- [ ] `generate_is_deterministic` — одинаковый seed → одинаковое имя.
 
 ---
 
@@ -211,7 +247,8 @@ struct MenuState {
 ```
 src/
 └── menu/
-    └── mod.rs   — MainMenuPlugin, MenuState, все системы меню
+    ├── mod.rs       — MainMenuPlugin, MenuState, все системы меню
+    └── name_gen.rs  — generate(rng) -> String, таблицы слогов
 ```
 
 ## Изменяемые файлы
@@ -223,6 +260,7 @@ src/data/mod.rs         — +MapInfo, +discover_maps(), +validate_map(); +name/d
 src/adventure/mod.rs    — OnEnter(Adventure): читать GameStartConfig, load_map, подставить имя
 src/adventure/render.rs — убрать build_initial_game_state из инициализации (заменяется конфигом)
 assets/maps/default.ron — добавить поля name и description
+Cargo.toml              — +rand (если ещё нет)
 ROADMAP.md              — добавить Этап 8, сдвинуть расширение в Этап 9
 ```
 
@@ -231,23 +269,26 @@ ROADMAP.md              — добавить Этап 8, сдвинуть рас
 ## Порядок реализации
 
 1. `src/data/mod.rs` — `MapInfo`, `discover_maps`, `validate_map` + тесты; `name`/`description` в `MapDefinition`
-2. `main.rs` — `GameScreen::MainMenu`, `GameStartConfig`, `MainMenuPlugin`
-3. `src/menu/mod.rs` — `setup_menu`, `despawn_menu`, логика ввода и выбора
-4. `adventure/mod.rs` — `OnEnter(Adventure)` читает `GameStartConfig`
-5. `gameover.rs` — «Играть снова» → `MainMenu`
-6. `cargo test` — все тесты зелёные
-7. `cargo clippy -- -D warnings` + `cargo fmt --check`
-8. Коммит
+2. `assets/maps/default.ron` — добавить `name` и `description`
+3. `src/menu/name_gen.rs` — `generate()` + тесты
+4. `main.rs` — `GameScreen::MainMenu`, `GameStartConfig`, `MainMenuPlugin`
+5. `src/menu/mod.rs` — `setup_menu`, `despawn_menu`, логика ввода, выбора и кнопки 🎲
+6. `adventure/mod.rs` — `OnEnter(Adventure)` читает `GameStartConfig`
+7. `gameover.rs` — «Играть снова» → `MainMenu`
+8. `cargo test` — все тесты зелёные
+9. `cargo clippy -- -D warnings` + `cargo fmt --check`
+10. Коммит
 
 ---
 
 ## Критерий готовности
 
 1. Приложение стартует на экране главного меню, не на карте.
-2. Список карт отображает все `*.ron` файлы из `assets/maps/`.
-3. Невалидный RON-файл в `assets/maps/` показывает понятную ошибку рядом с именем файла — приложение не падает.
+2. Список карт показывает `name` и `description` каждой валидной карты; невалидные — только в логе.
+3. Невалидный RON-файл в `assets/maps/` не роняет приложение.
 4. После ввода имени и выбора карты кнопка «Начать игру» становится активной.
-5. Игра стартует с введённым именем героя.
-6. «Играть снова» возвращает в главное меню (не запускает игру немедленно).
-7. `cargo test` — все тесты зелёные, включая 5 новых в `src/data/`.
-8. `cargo clippy -- -D warnings` и `cargo fmt --check` — чисто.
+5. Кнопка 🎲 подставляет случайное фэнтезийное имя, которое можно отредактировать.
+6. Игра стартует с введённым именем героя.
+7. «Играть снова» возвращает в главное меню (не запускает игру немедленно).
+8. `cargo test` — все тесты зелёные, включая 5 новых в `src/data/` и 3 в `src/menu/name_gen.rs`.
+9. `cargo clippy -- -D warnings` и `cargo fmt --check` — чисто.
