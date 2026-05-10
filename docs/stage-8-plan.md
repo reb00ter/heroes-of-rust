@@ -69,19 +69,21 @@
   ```rust
   pub struct MapDefinition {
       pub name:        String,   // "Равнины начала"
-      pub description: String,   // "Небольшая карта для обучения"
+      #[serde(default)]
+      pub description: String,   // может быть пустой строкой
       pub width:       u32,
       pub height:      u32,
       // ... остальные поля без изменений
   }
   ```
+  Поле `description` необязательное: если в RON-файле оно отсутствует, подставляется `""`.
 
 - [ ] Объявить:
   ```rust
   pub struct MapInfo {
       pub path:          String,
       pub name:          String,
-      pub description:   String,
+      pub description:   String,  // может быть пустой
       pub width:         u32,
       pub height:        u32,
       pub neutral_count: usize,
@@ -197,7 +199,7 @@ struct MenuState {
 ### 8.6 Тесты (`src/data/mod.rs`)
 
 - [ ] `discover_maps_finds_default` — `discover_maps("assets/maps/", &units)` возвращает ≥1 записи.
-- [ ] `valid_map_passes_validation` — `default.ron` проходит валидацию; `MapInfo` содержит корректные размеры, `name` и `description` непустые.
+- [ ] `valid_map_passes_validation` — `default.ron` проходит валидацию; `MapInfo` содержит корректные размеры, `name` непустой.
 - [ ] `missing_unit_id_fails_validation` — карта с `id: "dragon"` (нет в справочнике) → `Err`.
 - [ ] `out_of_bounds_position_fails` — карта с объектом за пределами `width×height` → `Err`.
 - [ ] `object_on_obstacle_fails` — карта с объектом на `Obstacle`-тайле → `Err`.
