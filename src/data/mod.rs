@@ -131,13 +131,13 @@ pub struct FactionUnitDef {
     pub ranged: bool,
 }
 
-/// Описание фракции — герой, ростер юнитов и стартовая армия.
+/// Описание фракции — список героев, ростер юнитов и стартовая армия.
 #[derive(serde::Deserialize, Clone, Debug)]
 #[allow(dead_code)] // поля используются в шагах 4 и 6 этапа 11
 pub struct FactionDef {
     pub id: String,
     pub name: String,
-    pub hero: FactionHeroDef,
+    pub heroes: Vec<FactionHeroDef>,
     pub units: Vec<FactionUnitDef>,
     pub starting_army: Vec<StackRef>,
 }
@@ -663,10 +663,15 @@ mod tests {
             .iter()
             .find(|f| f.id == "japanese_village")
             .expect("japanese_village exists");
-        assert_eq!(jv.hero.name, "Наруто");
-        assert_eq!(jv.hero.attack, 2);
-        assert_eq!(jv.hero.defense, 1);
-        assert_eq!(jv.hero.sight_range, 5);
+        let naruto = jv
+            .heroes
+            .iter()
+            .find(|h| h.id == "naruto")
+            .expect("naruto exists in japanese_village");
+        assert_eq!(naruto.name, "Наруто");
+        assert_eq!(naruto.attack, 2);
+        assert_eq!(naruto.defense, 1);
+        assert_eq!(naruto.sight_range, 5);
     }
 
     #[test]

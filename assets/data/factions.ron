@@ -2,11 +2,13 @@
     (
         id: "japanese_village",
         name: "Японская деревня",
-        hero: (
-            id: "naruto", name: "Наруто",
-            attack: 2, defense: 1, sight_range: 5,
-            portrait: "heroes/naruto",
-        ),
+        heroes: [
+            (
+                id: "naruto", name: "Наруто",
+                attack: 2, defense: 1, sight_range: 5,
+                portrait: "heroes/naruto",
+            ),
+        ],
         units: [
             (id: "naruto_clone",  name: "Клон Наруто",            tier: 1, damage: 2,  hp: 6,  cost: 25,  daily_growth: 7, ranged: false),
             (id: "ninja_student", name: "Ученик ниндзя",          tier: 2, damage: 4,  hp: 12, cost: 60,  daily_growth: 3, ranged: true),
@@ -18,11 +20,13 @@
     (
         id: "diy_hq",
         name: "Самодельный штаб",
-        hero: (
-            id: "egor", name: "Егор",
-            attack: 3, defense: 0, sight_range: 5,
-            portrait: "heroes/Yegor",
-        ),
+        heroes: [
+            (
+                id: "egor", name: "Егор",
+                attack: 3, defense: 0, sight_range: 5,
+                portrait: "heroes/Yegor",
+            ),
+        ],
         units: [
             (id: "fist_boy",       name: "Мальчик с кулаками",        tier: 1, damage: 1,  hp: 5,  cost: 20,  daily_growth: 8, ranged: false),
             (id: "rock_boy",       name: "Мальчик с камнем",           tier: 2, damage: 3,  hp: 8,  cost: 45,  daily_growth: 4, ranged: true),
