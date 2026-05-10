@@ -208,12 +208,24 @@ pub struct HeroDef {
       crate::data::load_map("assets/maps/default.ron")
   }
   ```
+- [ ] Рефакторить `startup_setup`: вместо дублирования логики спавна вызвать уже существующую `respawn_map_objects` (создана в этапе 6 для «Играть снова»). Спавн камеры и UI остаётся в `startup_setup`, спавн тайлов/объектов/героя — через `respawn_map_objects`.
 - [ ] Удалить все импорты, которые больше не нужны в `render.rs` после переноса логики.
-- [ ] Убедиться что старые тесты `neutral_armies_placed` и `neutral_army_blocks_movement` проходят без изменений — они по-прежнему вызывают `build_initial_game_state()`.
+- [ ] Убедиться что тесты из этапа 6 (`three_neutral_armies_on_map`, `hero_has_starter_army` и др.) проходят без изменений — они вызывают `build_initial_game_state()`.
+
+### 7.5 Динамические размеры карты (`adventure/mod.rs`)
+
+Константы `MAP_WIDTH = 20` и `MAP_HEIGHT = 15` сейчас захардкожены, но после перехода на файлы карта может быть любого размера. Нужно убрать жёсткую привязку.
+
+- [ ] Удалить (или сделать приватными/deprecated) `pub const MAP_WIDTH` и `pub const MAP_HEIGHT`.
+- [ ] `startup_setup` и `respawn_map_objects` читают размеры из `game_state.0.map.width` / `game_state.0.map.height`.
+- [ ] `grid_to_world` и `world_to_grid` принимают `map_w: u32, map_h: u32` как параметры вместо обращения к константам.
+- [ ] Bounds-проверка мыши в `adventure/input.rs` читает размеры из `GameStateResource`, а не из констант.
+
+> **Примечание:** это не требует поддержки resize во время игры — размеры читаются один раз при инициализации/рестарте. Но теперь `default.ron` с `width: 30, height: 20` заработает без изменений в коде.
 
 ---
 
-### 7.5 Тесты (`src/data/mod.rs`)
+### 7.6 Тесты (`src/data/mod.rs`)
 
 - [ ] `load_default_map_parses` — файл читается, `width == 20`, `height == 15`.
 - [ ] `default_map_has_correct_neutrals` — ровно 3 нейтральных отряда; позиции `(7,5)`, `(13,6)`, `(17,10)`; состав соответствует файлу.
@@ -225,7 +237,7 @@ pub struct HeroDef {
 
 ---
 
-### 7.6 Промпт для генерации карт (`docs/map-generation-prompt.md`)
+### 7.7 Промпт для генерации карт (`docs/map-generation-prompt.md`)
 
 - [ ] Создать `docs/map-generation-prompt.md` со следующим содержимым:
   - **Полная схема** — каждое поле с типом, описанием и допустимыми значениями.
@@ -258,15 +270,16 @@ docs/
 
 ## Порядок реализации
 
-1. `Cargo.toml` — зависимости
-2. `src/data/mod.rs` — типы + `load_map` + `map_def_to_game_state` (переносим код)
-3. `assets/maps/default.ron` — записываем текущую карту
-4. `src/adventure/render.rs` — упрощаем `build_initial_game_state`
-5. `src/main.rs` — подключаем `mod data`
-6. `cargo test` — все тесты зелёные
-7. `cargo clippy -- -D warnings` + `cargo fmt --check`
-8. `docs/map-generation-prompt.md`
-9. Коммит
+1. `Cargo.toml` — зависимости (`serde`, `ron`)
+2. `src/data/mod.rs` — типы + `load_map` + `map_def_to_game_state` + тесты
+3. `assets/maps/default.ron` — записать карту 20×15 (сверить с реальным `build_initial_game_state` после этапа 6)
+4. `src/adventure/render.rs` — упростить `build_initial_game_state`; рефакторить `startup_setup` → `respawn_map_objects`
+5. `src/adventure/mod.rs` + `input.rs` — убрать константы, перейти на динамические размеры
+6. `src/main.rs` — подключить `mod data`
+7. `cargo test` — все тесты зелёные
+8. `cargo clippy -- -D warnings` + `cargo fmt --check`
+9. `docs/map-generation-prompt.md`
+10. Коммит
 
 ---
 

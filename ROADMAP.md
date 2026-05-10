@@ -416,8 +416,15 @@
 ### 7.4 Упрощение `adventure/render.rs`
 
 - [ ] Заменить тело `build_initial_game_state()` на `crate::data::load_map("assets/maps/default.ron")`
+- [ ] Рефакторить `startup_setup` — переиспользовать `respawn_map_objects` из этапа 6
 
-### 7.5 Тесты (`src/data/mod.rs`)
+### 7.5 Динамические размеры карты (`adventure/mod.rs`, `input.rs`)
+
+- [ ] Убрать `pub const MAP_WIDTH` / `MAP_HEIGHT`; читать размеры из `GameStateResource`
+- [ ] `grid_to_world` / `world_to_grid` принимают размеры как параметры
+- [ ] Bounds-проверка мыши читает размеры из `GameStateResource`
+
+### 7.6 Тесты (`src/data/mod.rs`)
 
 - [ ] `load_default_map_parses` — файл читается, размеры верны
 - [ ] `default_map_has_correct_neutrals` — 2 нейтрала, позиции и состав верны
@@ -425,7 +432,7 @@
 - [ ] `default_map_hero_start` — позиция, MP, золото, армия
 - [ ] `unknown_field_is_error` — лишнее поле в RON даёт ошибку парсинга
 
-### 7.6 Промпт для генерации карт
+### 7.7 Промпт для генерации карт
 
 - [ ] Создать `docs/map-generation-prompt.md` — полная схема формата, ограничения, рекомендации по балансу, пример `default.ron`, инструкция для AI
 
