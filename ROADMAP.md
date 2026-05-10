@@ -401,10 +401,15 @@
 
 - [ ] Добавить `serde = { version = "1", features = ["derive"] }` и `ron = "0.8"` в `Cargo.toml`
 
-### 7.2 Формат и файл карты
+### 7.2 Справочник существ
+
+- [ ] Создать `assets/data/units.ron` — характеристики и дневной рост всех типов существ
+- [ ] `UnitTypeDef { name, damage, hp, cost, daily_growth }` в `src/data/mod.rs`
+
+### 7.3 Формат и файл карты
 
 - [ ] Создать директорию `assets/maps/`
-- [ ] Создать `assets/maps/default.ron` — карта 20×15 (этап 6), точная копия `build_initial_game_state`
+- [ ] Создать `assets/maps/default.ron` — карта 20×15; ссылки на существ только по имени и количеству (`StackRef { name, count }`)
 
 ### 7.3 Модуль данных (`src/data/mod.rs`)
 
@@ -415,7 +420,7 @@
 
 ### 7.4 Упрощение `adventure/render.rs`
 
-- [ ] Заменить тело `build_initial_game_state()` на `crate::data::load_map("assets/maps/default.ron")`
+- [ ] Заменить тело `build_initial_game_state()` на `crate::data::load_map("assets/maps/default.ron", "assets/data/units.ron")`
 - [ ] Рефакторить `startup_setup` — переиспользовать `respawn_map_objects` из этапа 6
 
 ### 7.5 Динамические размеры карты (`adventure/mod.rs`, `input.rs`)
@@ -426,11 +431,13 @@
 
 ### 7.6 Тесты (`src/data/mod.rs`)
 
-- [ ] `load_default_map_parses` — файл читается, размеры верны
-- [ ] `default_map_has_correct_neutrals` — 2 нейтрала, позиции и состав верны
-- [ ] `default_map_has_town` — 1 город, позиция, доход, рекруты
+- [ ] `load_units_parses` — справочник читается, характеристики верны
+- [ ] `unknown_unit_panics` — несуществующее имя существа даёт панику
+- [ ] `load_default_map_parses` — карта читается, `width == 20`, `height == 15`
+- [ ] `default_map_has_correct_neutrals` — 3 нейтрала, позиции и характеристики (из справочника) верны
+- [ ] `default_map_has_town` — 1 город, `daily_growth` берётся из справочника
 - [ ] `default_map_hero_start` — позиция, MP, золото, армия
-- [ ] `unknown_field_is_error` — лишнее поле в RON даёт ошибку парсинга
+- [ ] `unknown_field_in_map_is_error` — лишнее поле в RON даёт ошибку парсинга
 
 ### 7.7 Промпт для генерации карт
 

@@ -54,10 +54,32 @@ ROADMAP.md              — добавить Этап 7 и отметить за
 
 ## Задачи
 
-### 7.1 Формат файла (`assets/maps/default.ron`)
+### 7.1 Справочник существ (`assets/data/units.ron`)
+
+Характеристики существ не являются частью карты — они живут отдельно. Правило дневного роста в замке также принадлежит типу существа, а не конкретной карте.
+
+- [ ] Создать директорию `assets/data/`.
+- [ ] Создать `assets/data/units.ron` — справочник всех существ в игре:
+
+```ron
+[
+    (name: "Крестьянин", damage: 1, hp: 5,  cost: 25, daily_growth: 5),
+    (name: "Мечник",     damage: 3, hp: 10, cost: 75, daily_growth: 2),
+    (name: "Гоблин",     damage: 2, hp: 5,  cost: 0,  daily_growth: 0),
+    (name: "Орк",        damage: 4, hp: 10, cost: 0,  daily_growth: 0),
+    (name: "Тролль",     damage: 8, hp: 25, cost: 0,  daily_growth: 0),
+]
+```
+
+> `daily_growth: 0` для нейтральных существ — они не восполняются в замке.
+> Новые типы существ добавляются только в этот файл, карты не трогаются.
+
+### 7.2 Формат карты (`assets/maps/default.ron`)
+
+Карта ссылается на существ **только по имени и количеству** — без характеристик.
 
 - [ ] Создать директорию `assets/maps/`.
-- [ ] Записать карту этапа 6 (20×15) в RON-файл, точно воспроизводя `build_initial_game_state` после завершения этапа 6:
+- [ ] Записать карту этапа 6 (20×15):
 
 ```ron
 (
@@ -92,40 +114,61 @@ ROADMAP.md              — добавить Этап 7 и отметить за
             pos:          (4,2),
             daily_income: 250,
             recruits: [
-                (name: "Крестьянин", damage: 1, hp: 5,  cost: 25, count: 10, daily_growth: 5),
-                (name: "Мечник",     damage: 3, hp: 10, cost: 75, count: 5,  daily_growth: 2),
+                (name: "Крестьянин", count: 10),
+                (name: "Мечник",     count: 5),
             ],
         ),
     ],
 
     neutral_armies: [
-        (pos: (7,5),   units: [(name: "Гоблин", damage: 2, hp: 5,  cost: 0, count: 5, daily_growth: 0)]),
-        (pos: (13,6),  units: [(name: "Орк",    damage: 4, hp: 10, cost: 0, count: 4, daily_growth: 0)]),
-        (pos: (17,10), units: [(name: "Тролль", damage: 8, hp: 25, cost: 0, count: 2, daily_growth: 0)]),
+        (pos: (7,5),   units: [(name: "Гоблин",  count: 5)]),
+        (pos: (13,6),  units: [(name: "Орк",     count: 4)]),
+        (pos: (17,10), units: [(name: "Тролль",  count: 2)]),
     ],
 
     hero: (
         pos:             (1,1),
         name:            "Aldric",
         movement_points: 10,
-        army:            [(name: "Крестьянин", damage: 1, hp: 5, cost: 25, count: 5, daily_growth: 0)],
+        army:            [(name: "Крестьянин", count: 5)],
         starting_gold:   500,
     ),
 )
 ```
 
 **Ключевые решения формата:**
-- Позиции — кортежи `(i32, i32)`, не именованные структуры.
-- `UnitEntry` — единый тип для существ везде: в `recruits`, `neutral_armies.units` и `hero.army`. Поля `cost` и `daily_growth` для нейтралов = 0.
+- Карта содержит только позиции и количества — никаких характеристик существ.
+- Позиции — кортежи `(i32, i32)`.
 - Тайлы не перечисляются поштучно — только исключения (`obstacles`, `water`). Все остальные — `Ground`.
 
 ---
 
-### 7.2 Типы данных (`src/data/mod.rs`)
+### 7.3 Типы данных (`src/data/mod.rs`)
 
-- [ ] Объявить `MapDefinition` и все вспомогательные типы с `#[derive(serde::Deserialize)]`:
+- [ ] Объявить типы для **справочника существ**:
 
 ```rust
+/// Полное описание типа существа — загружается из units.ron.
+#[derive(serde::Deserialize, Clone)]
+pub struct UnitTypeDef {
+    pub name:         String,
+    pub damage:       u32,
+    pub hp:           u32,
+    pub cost:         u32,
+    pub daily_growth: u32,
+}
+```
+
+- [ ] Объявить типы для **карты** (`MapDefinition` и вспомогательные):
+
+```rust
+/// Ссылка на существо в карте — только имя и количество.
+#[derive(serde::Deserialize, Clone)]
+pub struct StackRef {
+    pub name:  String,
+    pub count: u32,
+}
+
 #[derive(serde::Deserialize)]
 pub struct MapDefinition {
     pub width:          u32,
@@ -149,24 +192,13 @@ pub struct TownDef {
     pub id:           u32,
     pub pos:          (i32, i32),
     pub daily_income: u32,
-    pub recruits:     Vec<UnitEntry>,
-}
-
-/// Единый тип записи существа — используется в city.recruits, neutral_armies и hero.army.
-#[derive(serde::Deserialize, Clone)]
-pub struct UnitEntry {
-    pub name:         String,
-    pub damage:       u32,
-    pub hp:           u32,
-    pub cost:         u32,   // gold; 0 для нейтралов и стартовой армии
-    pub count:        u32,
-    pub daily_growth: u32,   // 0 для нейтралов и армии героя
+    pub recruits:     Vec<StackRef>,
 }
 
 #[derive(serde::Deserialize)]
 pub struct NeutralArmyDef {
     pub pos:   (i32, i32),
-    pub units: Vec<UnitEntry>,
+    pub units: Vec<StackRef>,
 }
 
 #[derive(serde::Deserialize)]
@@ -174,29 +206,37 @@ pub struct HeroDef {
     pub pos:             (i32, i32),
     pub name:            String,
     pub movement_points: u32,
-    pub army:            Vec<UnitEntry>,
+    pub army:            Vec<StackRef>,
     pub starting_gold:   u32,
 }
 ```
 
 ---
 
-### 7.3 Функция загрузки (`src/data/mod.rs`)
+### 7.4 Функция загрузки (`src/data/mod.rs`)
 
-- [ ] Реализовать `pub fn load_map(path: &str) -> GameState`:
-  - Читает файл через `std::fs::read_to_string(path)`.
-  - Парсит через `ron::from_str::<MapDefinition>(&content)`.
-  - При ошибке — `panic!` с понятным сообщением (файл обязан быть в репозитории).
-  - Делегирует построение `GameState` в `fn map_def_to_game_state(def: MapDefinition) -> GameState`.
+- [ ] Реализовать `pub fn load_units(path: &str) -> Vec<UnitTypeDef>`:
+  - Читает `assets/data/units.ron`, парсит `Vec<UnitTypeDef>`.
+  - При ошибке — `panic!` с понятным сообщением.
 
-- [ ] Реализовать `fn map_def_to_game_state(def: MapDefinition) -> GameState` — содержит весь текущий код `build_initial_game_state`, но читает данные из `def`, а не из констант:
+- [ ] Реализовать вспомогательную функцию `fn resolve(name: &str, units: &[UnitTypeDef]) -> UnitType`:
+  - Ищет `UnitTypeDef` по имени, конвертирует в `core::hero::UnitType`.
+  - `panic!` если имя не найдено — ошибка данных, не рантайм.
+
+- [ ] Реализовать `pub fn load_map(map_path: &str, units_path: &str) -> GameState`:
+  - Загружает справочник: `load_units(units_path)`.
+  - Загружает карту: `ron::from_str::<MapDefinition>(...)`.
+  - Делегирует построение: `map_def_to_game_state(def, &units)`.
+
+- [ ] Реализовать `fn map_def_to_game_state(def: MapDefinition, units: &[UnitTypeDef]) -> GameState`:
   - Создать `AdventureMap::new(def.width, def.height)`.
-  - Расставить `Obstacle`/`Water` тайлы из `def.obstacles` / `def.water`.
+  - Расставить `Obstacle`/`Water` тайлы.
   - Разместить `ResourcePile`, `Town`, `NeutralArmy` объекты.
-  - Создать `Town` с `available_recruits` и `daily_growth` из `def.towns`.
-  - Создать `Hero` с армией из `def.hero.army`.
-  - Создать `Player` с `starting_gold`.
-  - Логировать инициализацию в том же формате что сейчас.
+  - `Town`: `available_recruits` — резолвить каждый `StackRef` через `resolve()`, `daily_growth` брать из `UnitTypeDef.daily_growth`.
+  - `NeutralArmy`: стеки из `StackRef` через `resolve()`.
+  - `Hero`: армия из `StackRef` через `resolve()`.
+  - `Player`: `starting_gold` из `def.hero.starting_gold`.
+  - Логировать инициализацию.
 
 ---
 
@@ -205,7 +245,7 @@ pub struct HeroDef {
 - [ ] Заменить тело `build_initial_game_state()` на однострочник:
   ```rust
   pub fn build_initial_game_state() -> GameState {
-      crate::data::load_map("assets/maps/default.ron")
+      crate::data::load_map("assets/maps/default.ron", "assets/data/units.ron")
   }
   ```
 - [ ] Рефакторить `startup_setup`: вместо дублирования логики спавна вызвать уже существующую `respawn_map_objects` (создана в этапе 6 для «Играть снова»). Спавн камеры и UI остаётся в `startup_setup`, спавн тайлов/объектов/героя — через `respawn_map_objects`.
@@ -227,11 +267,13 @@ pub struct HeroDef {
 
 ### 7.6 Тесты (`src/data/mod.rs`)
 
-- [ ] `load_default_map_parses` — файл читается, `width == 20`, `height == 15`.
-- [ ] `default_map_has_correct_neutrals` — ровно 3 нейтральных отряда; позиции `(7,5)`, `(13,6)`, `(17,10)`; состав соответствует файлу.
-- [ ] `default_map_has_town` — 1 город, позиция `(4,2)`, `daily_income == 250`, 2 типа рекрутов.
-- [ ] `default_map_hero_start` — герой в позиции `(1,1)`, `movement_points == 10`, армия содержит 5 Крестьян, золото 500.
-- [ ] `unknown_field_is_error` — RON с неизвестным полем верхнего уровня возвращает ошибку парсинга (проверяет что формат строгий).
+- [ ] `load_units_parses` — `units.ron` читается, содержит 5 записей, «Крестьянин» имеет `damage == 1`, `daily_growth == 5`.
+- [ ] `unknown_unit_panics` — `resolve("Дракон", &units)` паникует с понятным сообщением.
+- [ ] `load_default_map_parses` — карта читается, `width == 20`, `height == 15`.
+- [ ] `default_map_has_correct_neutrals` — 3 нейтрала; позиции `(7,5)`, `(13,6)`, `(17,10)`; характеристики взяты из справочника.
+- [ ] `default_map_has_town` — 1 город, позиция `(4,2)`, `daily_income == 250`, `daily_growth` Крестьянина == 5 (из справочника).
+- [ ] `default_map_hero_start` — герой в `(1,1)`, `movement_points == 10`, армия: 5 Крестьян, золото 500.
+- [ ] `unknown_field_in_map_is_error` — лишнее поле в `map.ron` возвращает ошибку парсинга.
 
 > Все тесты используют `std::fs` напрямую — не нужен Bevy рантайм, запускаются через `cargo test`.
 
@@ -252,8 +294,10 @@ pub struct HeroDef {
 
 ```
 assets/
+├── data/
+│   └── units.ron            — справочник существ (характеристики, daily_growth)
 └── maps/
-    └── default.ron          — карта 20×15 (этап 6)
+    └── default.ron          — карта 20×15 (только позиции и имена существ)
 
 src/
 ├── main.rs                  — +mod data
@@ -271,15 +315,17 @@ docs/
 ## Порядок реализации
 
 1. `Cargo.toml` — зависимости (`serde`, `ron`)
-2. `src/data/mod.rs` — типы + `load_map` + `map_def_to_game_state` + тесты
-3. `assets/maps/default.ron` — записать карту 20×15 (сверить с реальным `build_initial_game_state` после этапа 6)
-4. `src/adventure/render.rs` — упростить `build_initial_game_state`; рефакторить `startup_setup` → `respawn_map_objects`
-5. `src/adventure/mod.rs` + `input.rs` — убрать константы, перейти на динамические размеры
-6. `src/main.rs` — подключить `mod data`
-7. `cargo test` — все тесты зелёные
-8. `cargo clippy -- -D warnings` + `cargo fmt --check`
-9. `docs/map-generation-prompt.md`
-10. Коммит
+2. `src/data/mod.rs` — `UnitTypeDef`, `StackRef`, `MapDefinition` и прочие типы
+3. `assets/data/units.ron` — справочник существ
+4. `src/data/mod.rs` — `load_units`, `resolve`, `load_map`, `map_def_to_game_state` + тесты
+5. `assets/maps/default.ron` — карта 20×15 (сверить с реальным `build_initial_game_state`)
+6. `src/adventure/render.rs` — упростить `build_initial_game_state`; `startup_setup` → `respawn_map_objects`
+7. `src/adventure/mod.rs` + `input.rs` — убрать константы, перейти на динамические размеры
+8. `src/main.rs` — подключить `mod data`
+9. `cargo test` — все тесты зелёные
+10. `cargo clippy -- -D warnings` + `cargo fmt --check`
+11. `docs/map-generation-prompt.md`
+12. Коммит
 
 ---
 
