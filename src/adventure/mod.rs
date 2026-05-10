@@ -101,6 +101,7 @@ pub(super) fn spawn_gold_pile(
     map_h: u32,
 ) {
     let world = grid_to_world(pos, map_w, map_h);
+    // AssetServer кэширует хэндлы по пути — повторные load() дёшевы
     let tex: Handle<Image> = asset_server.load("sprites/gold_pile.png");
     commands.spawn((
         Sprite {
@@ -163,6 +164,9 @@ fn check_game_over(
 
 /// Переводит позицию в сетке в мировые координаты Bevy (центр тайла).
 /// Карта центрируется вокруг начала координат.
+///
+/// # Precision
+/// `map_w` и `map_h` не превышают нескольких десятков тайлов; касты в f32 безопасны.
 #[must_use]
 #[allow(clippy::cast_precision_loss)]
 pub fn grid_to_world(pos: Position, map_w: u32, map_h: u32) -> Vec2 {
