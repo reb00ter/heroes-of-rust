@@ -14,9 +14,9 @@ use super::{
 // Цвета тайлов и объектов
 // ---------------------------------------------------------------------------
 
-const COLOR_GROUND: Color = Color::srgb(0.20, 0.55, 0.20);
-const COLOR_OBSTACLE: Color = Color::srgb(0.45, 0.45, 0.45);
-const COLOR_WATER: Color = Color::srgb(0.15, 0.35, 0.80);
+const COLOR_GROUND: Color = Color::srgb(0.13, 0.32, 0.13);
+const COLOR_OBSTACLE: Color = Color::srgb(0.28, 0.28, 0.28);
+const COLOR_WATER: Color = Color::srgb(0.08, 0.20, 0.50);
 const COLOR_HOVER: Color = Color::srgba(1.0, 1.0, 1.0, 0.30);
 
 fn fog_color(state: VisibilityState) -> Color {
