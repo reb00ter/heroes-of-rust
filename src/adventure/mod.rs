@@ -9,8 +9,6 @@ use crate::core::hero::{Hero, HeroId};
 use crate::core::map::Position;
 use crate::core::player::TownId;
 
-pub use render::build_initial_game_state;
-
 // ---------------------------------------------------------------------------
 // Константы отображения
 // ---------------------------------------------------------------------------
@@ -28,7 +26,7 @@ pub struct GameStateResource(pub crate::core::state::GameState);
 // Компоненты Bevy
 // ---------------------------------------------------------------------------
 
-/// Маркер тайла карты. Поле `pos` используется в Этапе 3+ для взаимодействия с клетками.
+/// Маркер тайла карты.
 #[derive(Component)]
 pub struct TileMarker {
     #[allow(dead_code)]
@@ -39,7 +37,7 @@ pub struct TileMarker {
 #[derive(Component)]
 pub struct HeroMarker(pub HeroId);
 
-/// Подсветка доступного хода (соседняя проходимая клетка).
+/// Подсветка доступного хода.
 #[derive(Component)]
 pub struct MovementHighlight;
 
@@ -51,15 +49,15 @@ pub struct HoverHighlight;
 #[derive(Component)]
 pub struct MovementPointsText;
 
-/// Маркер спрайта кучки ресурсов на карте приключений.
+/// Маркер спрайта кучки ресурсов.
 #[derive(Component)]
 pub struct ResourcePileMarker(pub Position);
 
-/// Маркер спрайта города на карте приключений.
+/// Маркер спрайта города.
 #[derive(Component)]
 pub struct TownMarker(#[allow(dead_code)] pub TownId);
 
-/// Маркер спрайта нейтрального отряда на карте приключений.
+/// Маркер спрайта нейтрального отряда.
 #[derive(Component)]
 pub struct NeutralArmyMarker(pub Position);
 
@@ -76,7 +74,7 @@ pub enum BannerKind {
 #[derive(Resource, Default)]
 pub struct ShowBanner(pub Option<BannerKind>);
 
-/// Текстовая метка армии героя на карте приключений.
+/// Текстовая метка армии героя.
 #[derive(Component)]
 pub struct ArmyText;
 
@@ -88,11 +86,14 @@ pub struct GoldText;
 #[derive(Component)]
 pub struct DayText;
 
+/// Подсказка управления внизу экрана.
+#[derive(Component)]
+pub struct HintText;
+
 // ---------------------------------------------------------------------------
-// Spawn-хелперы: единственное место, где задаётся внешний вид каждого объекта
+// Spawn-хелперы
 // ---------------------------------------------------------------------------
 
-/// Спаунит спрайт кучки золота. Вызывается из `sync_map_objects`.
 pub(super) fn spawn_gold_pile(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -101,7 +102,6 @@ pub(super) fn spawn_gold_pile(
     map_h: u32,
 ) {
     let world = grid_to_world(pos, map_w, map_h);
-    // AssetServer кэширует хэндлы по пути — повторные load() дёшевы
     let tex: Handle<Image> = asset_server.load("sprites/gold_pile.png");
     commands.spawn((
         Sprite {
@@ -114,7 +114,6 @@ pub(super) fn spawn_gold_pile(
     ));
 }
 
-/// Спаунит спрайт нейтрального отряда. Вызывается из `sync_map_objects`.
 pub(super) fn spawn_neutral_army(commands: &mut Commands, pos: Position, map_w: u32, map_h: u32) {
     let world = grid_to_world(pos, map_w, map_h);
     commands.spawn((
@@ -128,7 +127,6 @@ pub(super) fn spawn_neutral_army(commands: &mut Commands, pos: Position, map_w: 
     ));
 }
 
-/// Спаунит спрайт героя. Вызывается из `sync_map_objects`.
 pub(super) fn spawn_hero(commands: &mut Commands, hero: &Hero, map_w: u32, map_h: u32) {
     let world = grid_to_world(hero.position, map_w, map_h);
     commands.spawn((
@@ -146,8 +144,64 @@ pub(super) fn spawn_hero(commands: &mut Commands, hero: &Hero, map_w: u32, map_h
 // Системы
 // ---------------------------------------------------------------------------
 
+/// Загружает карту из `GameStartConfig` при первом входе в Adventure (старт/рестарт).
+/// Если конфига нет — возврат из Town/Battle, ничего не делать.
+#[allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
+fn load_map_from_config(
+    mut commands: Commands,
+    config: Option<Res<crate::GameStartConfig>>,
+    mut game_state: ResMut<GameStateResource>,
+    tile_q: Query<Entity, With<TileMarker>>,
+    town_q: Query<Entity, With<TownMarker>>,
+    mp_q: Query<Entity, With<MovementPointsText>>,
+    gold_q: Query<Entity, With<GoldText>>,
+    day_q: Query<Entity, With<DayText>>,
+    army_q: Query<Entity, With<ArmyText>>,
+    hint_q: Query<Entity, With<HintText>>,
+    asset_server: Res<AssetServer>,
+) {
+    let Some(config) = config else {
+        return;
+    };
+
+    let mut gs = crate::data::load_map(&config.map_path, "assets/data/units.ron");
+    if let Some(hero) = gs.heroes.first_mut() {
+        hero.name.clone_from(&config.hero_name);
+    }
+    game_state.0 = gs;
+
+    // Очистить старые статические тайлы и UI
+    for e in &tile_q {
+        commands.entity(e).despawn();
+    }
+    for e in &town_q {
+        commands.entity(e).despawn();
+    }
+    for e in &mp_q {
+        commands.entity(e).despawn();
+    }
+    for e in &gold_q {
+        commands.entity(e).despawn();
+    }
+    for e in &day_q {
+        commands.entity(e).despawn();
+    }
+    for e in &army_q {
+        commands.entity(e).despawn();
+    }
+    for e in &hint_q {
+        commands.entity(e).despawn();
+    }
+
+    // Заспавнить новые тайлы и UI
+    render::respawn_map_objects(&mut commands, &game_state.0);
+    let font: Handle<Font> = asset_server.load("fonts/Roboto-Regular.ttf");
+    render::spawn_adventure_ui(&mut commands, &game_state.0, font);
+
+    commands.remove_resource::<crate::GameStartConfig>();
+}
+
 /// Если после боя установлен `GameOverResult` — немедленно переходить на `GameOver`.
-/// Запускается вторым в `OnEnter(GameScreen::Adventure)`, после `reset_map_on_restart`.
 #[allow(clippy::needless_pass_by_value)]
 fn check_game_over(
     game_over: Option<Res<crate::GameOverResult>>,
@@ -162,11 +216,6 @@ fn check_game_over(
 // Вспомогательные функции конвертации координат
 // ---------------------------------------------------------------------------
 
-/// Переводит позицию в сетке в мировые координаты Bevy (центр тайла).
-/// Карта центрируется вокруг начала координат.
-///
-/// # Precision
-/// `map_w` и `map_h` не превышают нескольких десятков тайлов; касты в f32 безопасны.
 #[must_use]
 #[allow(clippy::cast_precision_loss)]
 pub fn grid_to_world(pos: Position, map_w: u32, map_h: u32) -> Vec2 {
@@ -178,10 +227,6 @@ pub fn grid_to_world(pos: Position, map_w: u32, map_h: u32) -> Vec2 {
     )
 }
 
-/// Переводит мировые координаты Bevy в позицию в сетке карты.
-///
-/// # Truncation
-/// После `round()` значение гарантированно в диапазоне тайлов; усечение безопасно.
 #[must_use]
 #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 pub fn world_to_grid(world: Vec2, map_w: u32, map_h: u32) -> Position {
@@ -201,12 +246,17 @@ pub struct AdventurePlugin;
 
 impl Plugin for AdventurePlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(GameStateResource(build_initial_game_state()))
+        app.insert_resource(GameStateResource(render::build_initial_game_state()))
             .init_resource::<ShowBanner>()
             .add_systems(Startup, render::startup_setup)
             .add_systems(
                 OnEnter(GameScreen::Adventure),
-                (check_game_over, render::show_result_banner).chain(),
+                (
+                    load_map_from_config,
+                    check_game_over,
+                    render::show_result_banner,
+                )
+                    .chain(),
             )
             .add_systems(
                 Update,

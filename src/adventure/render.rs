@@ -4,7 +4,7 @@ use crate::core::map::TileKind;
 use crate::core::state::GameState;
 
 use super::{
-    ArmyText, BannerKind, DayText, GameStateResource, GoldText, HoverHighlight, MovementPointsText,
+    ArmyText, BannerKind, DayText, GoldText, HintText, HoverHighlight, MovementPointsText,
     ShowBanner, TILE_SIZE, TileMarker, TownMarker, grid_to_world,
 };
 
@@ -27,24 +27,14 @@ pub fn build_initial_game_state() -> GameState {
 }
 
 // ---------------------------------------------------------------------------
-// Startup-система: камера, статические тайлы, UI
+// Startup-система: только камера и hover-highlight
 // ---------------------------------------------------------------------------
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn startup_setup(
-    mut commands: Commands,
-    game_state: Res<GameStateResource>,
-    asset_server: Res<AssetServer>,
-) {
-    let gs = &game_state.0;
-    let font: Handle<Font> = asset_server.load("fonts/Roboto-Regular.ttf");
-
-    // Камера по центру карты (мировой центр = (0,0))
+pub fn startup_setup(mut commands: Commands) {
     commands.spawn(Camera2d);
 
-    respawn_map_objects(&mut commands, gs);
-
-    // --- Подсветка курсора (изначально скрыта) ---
+    // Hover-highlight (изначально скрыт)
     commands.spawn((
         Sprite {
             color: COLOR_HOVER,
@@ -55,12 +45,14 @@ pub fn startup_setup(
         Visibility::Hidden,
         HoverHighlight,
     ));
-
-    spawn_ui(&mut commands, gs, font);
 }
 
+// ---------------------------------------------------------------------------
+// Статические объекты карты (тайлы и города)
+// ---------------------------------------------------------------------------
+
 /// Спавнит статические тайлы карты и города.
-/// Вызывается из `startup_setup`; может быть вызвана повторно при рестарте.
+/// Вызывается из `load_map_from_config` при каждом старте новой игры.
 pub(super) fn respawn_map_objects(commands: &mut Commands, gs: &GameState) {
     let map_w = gs.map.width;
     let map_h = gs.map.height;
@@ -84,7 +76,7 @@ pub(super) fn respawn_map_objects(commands: &mut Commands, gs: &GameState) {
             commands.spawn((
                 Sprite {
                     color,
-                    custom_size: Some(Vec2::splat(TILE_SIZE - 1.0)), // зазор 1px
+                    custom_size: Some(Vec2::splat(TILE_SIZE - 1.0)),
                     ..default()
                 },
                 Transform::from_xyz(world.x, world.y, 0.0),
@@ -108,8 +100,9 @@ pub(super) fn respawn_map_objects(commands: &mut Commands, gs: &GameState) {
     }
 }
 
-/// Спавнит все UI-элементы на экране (MP, золото, день, подсказка).
-fn spawn_ui(commands: &mut Commands, gs: &crate::core::state::GameState, font: Handle<Font>) {
+/// Спавнит UI-панель приключения (MP, золото, день, армия, подсказка).
+/// Вызывается из `load_map_from_config` при каждом старте новой игры.
+pub(super) fn spawn_adventure_ui(commands: &mut Commands, gs: &GameState, font: Handle<Font>) {
     let mp = gs.heroes.first().map_or(0, |h| h.movement_points);
     let mp_max = gs.heroes.first().map_or(0, |h| h.movement_points_max);
 
@@ -197,11 +190,12 @@ fn spawn_ui(commands: &mut Commands, gs: &crate::core::state::GameState, font: H
             bottom: Val::Px(12.0),
             ..default()
         },
+        HintText,
     ));
 }
 
 // ---------------------------------------------------------------------------
-// Баннер результата боя (5.11)
+// Баннер результата боя
 // ---------------------------------------------------------------------------
 
 #[derive(Component)]
@@ -210,7 +204,7 @@ pub struct BannerRoot;
 #[derive(Component)]
 pub struct BannerTimer(pub Timer);
 
-/// Спавнит баннер «Победа!» / «Поражение» если `ShowBanner` установлен.
+/// Спавнит баннер «Победа!» если `ShowBanner` установлен.
 /// Запускается в `OnEnter(GameScreen::Adventure)`.
 #[allow(clippy::needless_pass_by_value)]
 pub fn show_result_banner(

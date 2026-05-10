@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::adventure::{GameStateResource, ShowBanner, build_initial_game_state};
+use crate::adventure::ShowBanner;
 use crate::{GameOverResult, GameScreen};
 
 // ---------------------------------------------------------------------------
@@ -126,25 +126,17 @@ fn despawn_gameover_ui(mut commands: Commands, root_q: Query<Entity, With<GameOv
 fn handle_gameover_input(
     mut commands: Commands,
     interaction_q: Query<&Interaction, (Changed<Interaction>, With<PlayAgainButton>)>,
-    mut game_state: ResMut<GameStateResource>,
     mut show_banner: ResMut<ShowBanner>,
     mut next_state: ResMut<NextState<GameScreen>>,
 ) {
     for interaction in &interaction_q {
         if *interaction == Interaction::Pressed {
-            info!("[GAMEOVER] Play again pressed. Resetting game state.");
+            info!("[GAMEOVER] Play again pressed. Returning to main menu.");
 
-            // Сбросить игровое состояние
-            game_state.0 = build_initial_game_state();
-
-            // Сбросить баннер боя
             show_banner.0 = None;
-
-            // Убрать результат
             commands.remove_resource::<GameOverResult>();
 
-            // Переход на карту
-            next_state.set(GameScreen::Adventure);
+            next_state.set(GameScreen::MainMenu);
         }
     }
 }
