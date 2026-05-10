@@ -63,16 +63,18 @@ ROADMAP.md              — добавить Этап 7 и отметить за
 
 ```ron
 [
-    (name: "Крестьянин", damage: 1, hp: 5,  cost: 25, daily_growth: 5),
-    (name: "Мечник",     damage: 3, hp: 10, cost: 75, daily_growth: 2),
-    (name: "Гоблин",     damage: 2, hp: 5,  cost: 0,  daily_growth: 0),
-    (name: "Орк",        damage: 4, hp: 10, cost: 0,  daily_growth: 0),
-    (name: "Тролль",     damage: 8, hp: 25, cost: 0,  daily_growth: 0),
+    (id: "peasant",   name: "Крестьянин", damage: 1, hp: 5,  cost: 25, daily_growth: 5),
+    (id: "swordsman", name: "Мечник",     damage: 3, hp: 10, cost: 75, daily_growth: 2),
+    (id: "goblin",    name: "Гоблин",     damage: 2, hp: 5,  cost: 0,  daily_growth: 0),
+    (id: "orc",       name: "Орк",        damage: 4, hp: 10, cost: 0,  daily_growth: 0),
+    (id: "troll",     name: "Тролль",     damage: 8, hp: 25, cost: 0,  daily_growth: 0),
 ]
 ```
 
-> `daily_growth: 0` для нейтральных существ — они не восполняются в замке.
-> Новые типы существ добавляются только в этот файл, карты не трогаются.
+- `id` — ASCII-идентификатор, используется в файлах карт для связки; без кириллицы.
+- `name` — отображаемое название для UI; кириллица, только здесь.
+- `daily_growth: 0` для нейтральных существ — они не восполняются в замке.
+- Новые типы существ добавляются только в этот файл, карты не трогаются.
 
 ### 7.2 Формат карты (`assets/maps/default.ron`)
 
@@ -114,31 +116,31 @@ ROADMAP.md              — добавить Этап 7 и отметить за
             pos:          (4,2),
             daily_income: 250,
             recruits: [
-                (name: "Крестьянин", count: 10),
-                (name: "Мечник",     count: 5),
+                (id: "peasant",   count: 10),
+                (id: "swordsman", count: 5),
             ],
         ),
     ],
 
     neutral_armies: [
-        (pos: (7,5),   units: [(name: "Гоблин",  count: 5)]),
-        (pos: (13,6),  units: [(name: "Орк",     count: 4)]),
-        (pos: (17,10), units: [(name: "Тролль",  count: 2)]),
+        (pos: (7,5),   units: [(id: "goblin", count: 5)]),
+        (pos: (13,6),  units: [(id: "orc",    count: 4)]),
+        (pos: (17,10), units: [(id: "troll",  count: 2)]),
     ],
 
     hero: (
         pos:             (1,1),
         name:            "Aldric",
         movement_points: 10,
-        army:            [(name: "Крестьянин", count: 5)],
+        army:            [(id: "peasant", count: 5)],
         starting_gold:   500,
     ),
 )
 ```
 
 **Ключевые решения формата:**
-- Карта содержит только позиции и количества — никаких характеристик существ.
-- Позиции — кортежи `(i32, i32)`.
+- Карта ссылается на существ через ASCII `id` — без кириллицы в файлах карт.
+- Отображаемое `name` хранится только в `units.ron` и оттуда попадает в `UnitType.name` для UI.
 - Тайлы не перечисляются поштучно — только исключения (`obstacles`, `water`). Все остальные — `Ground`.
 
 ---
@@ -151,7 +153,8 @@ ROADMAP.md              — добавить Этап 7 и отметить за
 /// Полное описание типа существа — загружается из units.ron.
 #[derive(serde::Deserialize, Clone)]
 pub struct UnitTypeDef {
-    pub name:         String,
+    pub id:           String,  // ASCII-ключ для связки с картами
+    pub name:         String,  // отображаемое название для UI (кириллица)
     pub damage:       u32,
     pub hp:           u32,
     pub cost:         u32,
@@ -162,10 +165,10 @@ pub struct UnitTypeDef {
 - [ ] Объявить типы для **карты** (`MapDefinition` и вспомогательные):
 
 ```rust
-/// Ссылка на существо в карте — только имя и количество.
+/// Ссылка на существо в карте — только id и количество.
 #[derive(serde::Deserialize, Clone)]
 pub struct StackRef {
-    pub name:  String,
+    pub id:    String,  // ASCII, совпадает с UnitTypeDef.id
     pub count: u32,
 }
 
@@ -219,9 +222,9 @@ pub struct HeroDef {
   - Читает `assets/data/units.ron`, парсит `Vec<UnitTypeDef>`.
   - При ошибке — `panic!` с понятным сообщением.
 
-- [ ] Реализовать вспомогательную функцию `fn resolve(name: &str, units: &[UnitTypeDef]) -> UnitType`:
-  - Ищет `UnitTypeDef` по имени, конвертирует в `core::hero::UnitType`.
-  - `panic!` если имя не найдено — ошибка данных, не рантайм.
+- [ ] Реализовать вспомогательную функцию `fn resolve(id: &str, units: &[UnitTypeDef]) -> UnitType`:
+  - Ищет `UnitTypeDef` по `id`, конвертирует в `core::hero::UnitType` (кириллическое `name` идёт в `UnitType.name` для UI).
+  - `panic!` если `id` не найден — ошибка данных, не рантайм.
 
 - [ ] Реализовать `pub fn load_map(map_path: &str, units_path: &str) -> GameState`:
   - Загружает справочник: `load_units(units_path)`.
@@ -267,8 +270,8 @@ pub struct HeroDef {
 
 ### 7.6 Тесты (`src/data/mod.rs`)
 
-- [ ] `load_units_parses` — `units.ron` читается, содержит 5 записей, «Крестьянин» имеет `damage == 1`, `daily_growth == 5`.
-- [ ] `unknown_unit_panics` — `resolve("Дракон", &units)` паникует с понятным сообщением.
+- [ ] `load_units_parses` — `units.ron` читается, содержит 5 записей; запись с `id == "peasant"` имеет `name == "Крестьянин"`, `damage == 1`, `daily_growth == 5`.
+- [ ] `unknown_unit_panics` — `resolve("dragon", &units)` паникует с понятным сообщением.
 - [ ] `load_default_map_parses` — карта читается, `width == 20`, `height == 15`.
 - [ ] `default_map_has_correct_neutrals` — 3 нейтрала; позиции `(7,5)`, `(13,6)`, `(17,10)`; характеристики взяты из справочника.
 - [ ] `default_map_has_town` — 1 город, позиция `(4,2)`, `daily_income == 250`, `daily_growth` Крестьянина == 5 (из справочника).
