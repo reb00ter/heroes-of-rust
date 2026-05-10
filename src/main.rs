@@ -59,7 +59,7 @@ fn main() {
             }),
             ..default()
         }))
-        .insert_resource(ClearColor(Color::srgb(0.10, 0.25, 0.10)))
+        .insert_resource(ClearColor(Color::srgb(0.08, 0.08, 0.12)))
         .init_state::<GameScreen>()
         .add_plugins(MainMenuPlugin)
         .add_plugins(AdventurePlugin)

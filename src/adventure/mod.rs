@@ -67,6 +67,10 @@ pub struct FogOverlay {
     pub pos: Position,
 }
 
+/// Линия сетки карты (Z=0.5).
+#[derive(Component)]
+pub struct GridLine;
+
 // ---------------------------------------------------------------------------
 // Баннер результата боя
 // ---------------------------------------------------------------------------
@@ -160,6 +164,7 @@ fn load_map_from_config(
     tile_q: Query<Entity, With<TileMarker>>,
     town_q: Query<Entity, With<TownMarker>>,
     fog_q: Query<Entity, With<FogOverlay>>,
+    grid_q: Query<Entity, With<GridLine>>,
     mp_q: Query<Entity, With<MovementPointsText>>,
     gold_q: Query<Entity, With<GoldText>>,
     day_q: Query<Entity, With<DayText>>,
@@ -185,6 +190,9 @@ fn load_map_from_config(
         commands.entity(e).despawn();
     }
     for e in &fog_q {
+        commands.entity(e).despawn();
+    }
+    for e in &grid_q {
         commands.entity(e).despawn();
     }
     for e in &mp_q {

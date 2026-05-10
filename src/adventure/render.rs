@@ -6,7 +6,7 @@ use crate::core::state::GameState;
 use crate::core::map::VisibilityState;
 
 use super::{
-    ArmyText, BannerKind, DayText, FogOverlay, GoldText, HintText, HoverHighlight,
+    ArmyText, BannerKind, DayText, FogOverlay, GoldText, GridLine, HintText, HoverHighlight,
     MovementPointsText, ShowBanner, TILE_SIZE, TileMarker, TownMarker, grid_to_world,
 };
 
@@ -61,6 +61,41 @@ pub fn startup_setup(mut commands: Commands) {
 // Статические объекты карты (тайлы и города)
 // ---------------------------------------------------------------------------
 
+/// Спавнит линии сетки поверх тайлов (Z=0.5, под туманом Z=2).
+#[allow(clippy::cast_precision_loss)]
+fn spawn_grid_lines(commands: &mut Commands, map_w: u32, map_h: u32) {
+    let color = Color::srgba(1.0, 1.0, 1.0, 0.07);
+    let total_w = map_w as f32 * TILE_SIZE;
+    let total_h = map_h as f32 * TILE_SIZE;
+    let x_left = -total_w / 2.0;
+    let y_top = total_h / 2.0;
+
+    for i in 0..=map_w {
+        let x = x_left + i as f32 * TILE_SIZE;
+        commands.spawn((
+            Sprite {
+                color,
+                custom_size: Some(Vec2::new(1.0, total_h)),
+                ..default()
+            },
+            Transform::from_xyz(x, 0.0, 0.5),
+            GridLine,
+        ));
+    }
+    for j in 0..=map_h {
+        let y = y_top - j as f32 * TILE_SIZE;
+        commands.spawn((
+            Sprite {
+                color,
+                custom_size: Some(Vec2::new(total_w, 1.0)),
+                ..default()
+            },
+            Transform::from_xyz(0.0, y, 0.5),
+            GridLine,
+        ));
+    }
+}
+
 /// Спавнит статические тайлы карты и города.
 /// Вызывается из `load_map_from_config` при каждом старте новой игры.
 pub(super) fn respawn_map_objects(commands: &mut Commands, gs: &GameState) {
@@ -86,7 +121,7 @@ pub(super) fn respawn_map_objects(commands: &mut Commands, gs: &GameState) {
             commands.spawn((
                 Sprite {
                     color,
-                    custom_size: Some(Vec2::splat(TILE_SIZE - 1.0)),
+                    custom_size: Some(Vec2::splat(TILE_SIZE)),
                     ..default()
                 },
                 Transform::from_xyz(world.x, world.y, 0.0),
@@ -109,6 +144,9 @@ pub(super) fn respawn_map_objects(commands: &mut Commands, gs: &GameState) {
             ));
         }
     }
+
+    // --- Сетка (Z=0.5) ---
+    spawn_grid_lines(commands, map_w, map_h);
 
     // --- Города (Z=1, статика) ---
     for town in &gs.towns {
