@@ -94,6 +94,7 @@ pub fn mouse_click_input(
     let map_h = game_state.0.map.height;
     let grid_pos = world_to_grid(world_pos, map_w, map_h);
 
+    // Проверяем что клик в пределах карты
     if grid_pos.x < 0
         || grid_pos.y < 0
         || grid_pos.x >= map_w.cast_signed()
@@ -220,6 +221,7 @@ fn apply_move(
                     defender_pos,
                 } = event
                 {
+                    // Не начинать бой без армии — герой должен сначала нанять войска
                     let army_empty = gs.get_hero(*attacker).is_none_or(|h| h.army.is_empty());
                     if army_empty {
                         info!(

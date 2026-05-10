@@ -22,6 +22,7 @@ pub fn update_available_moves(
     highlights: Query<Entity, With<MovementHighlight>>,
     game_state: Res<GameStateResource>,
 ) {
+    // Удаляем старые подсветки
     for entity in &highlights {
         commands.entity(entity).despawn();
     }
@@ -31,6 +32,7 @@ pub fn update_available_moves(
         return;
     };
 
+    // Если нет очков движения — не показываем доступные ходы
     if hero.movement_points == 0 {
         return;
     }
@@ -60,6 +62,9 @@ pub fn update_available_moves(
 
 /// Сверяет entity на сцене с `GameState` и приводит их в соответствие.
 /// Запускается каждый кадр, но реально работает только при изменении `GameState`.
+///
+/// Принцип: визуальное состояние = функция от игрового состояния.
+/// Явного «сброса карты» не нужно — эта система делает всё сама.
 #[allow(clippy::needless_pass_by_value)]
 pub fn sync_map_objects(
     mut commands: Commands,
@@ -127,6 +132,8 @@ pub fn sync_map_objects(
     }
 
     // --- Герой ---
+    // За один проход: обновляем Transform существующих entity и собираем их ID.
+    // Затем спауним тех, кого ещё нет.
     let mut seen_ids: HashSet<HeroId> = HashSet::new();
     for (_, marker, mut transform) in &mut hero_q {
         if let Some(hero) = gs.heroes.iter().find(|h| h.id == marker.0) {

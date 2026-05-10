@@ -84,7 +84,7 @@ pub(super) fn respawn_map_objects(commands: &mut Commands, gs: &GameState) {
             commands.spawn((
                 Sprite {
                     color,
-                    custom_size: Some(Vec2::splat(TILE_SIZE - 1.0)),
+                    custom_size: Some(Vec2::splat(TILE_SIZE - 1.0)), // зазор 1px
                     ..default()
                 },
                 Transform::from_xyz(world.x, world.y, 0.0),
