@@ -65,30 +65,36 @@
 
 ### 8.2 Сканирование и валидация карт (`src/data/mod.rs`)
 
-- [ ] Реализовать `pub fn discover_maps(maps_dir: &str) -> Vec<MapEntry>`:
-  - Перебирает `*.ron` файлы в папке через `std::fs::read_dir`.
-  - Для каждого файла вызывает `validate_map`.
-  - Возвращает список записей — валидных и невалидных.
+- [ ] Добавить поля `name` и `description` в `MapDefinition`:
+  ```rust
+  pub struct MapDefinition {
+      pub name:        String,   // "Равнины начала"
+      pub description: String,   // "Небольшая карта для обучения"
+      pub width:       u32,
+      pub height:      u32,
+      // ... остальные поля без изменений
+  }
+  ```
 
 - [ ] Объявить:
   ```rust
-  pub struct MapEntry {
-      pub path:   String,       // путь к файлу
-      pub result: MapEntryResult,
-  }
-
-  pub enum MapEntryResult {
-      Valid(MapInfo),
-      Invalid(String),          // человекочитаемое сообщение об ошибке
-  }
-
   pub struct MapInfo {
-      pub width:          u32,
-      pub height:         u32,
-      pub neutral_count:  usize,
-      pub town_count:     usize,
+      pub path:          String,
+      pub name:          String,
+      pub description:   String,
+      pub width:         u32,
+      pub height:        u32,
+      pub neutral_count: usize,
+      pub town_count:    usize,
   }
   ```
+
+- [ ] Реализовать `pub fn discover_maps(maps_dir: &str, units: &[UnitTypeDef]) -> Vec<MapInfo>`:
+  - Перебирает `*.ron` файлы в папке через `std::fs::read_dir`.
+  - Для каждого файла вызывает `validate_map`.
+  - Валидный файл → добавляет `MapInfo` в список.
+  - Невалидный файл → `warn!("Map {path} skipped: {reason}")`, пропускается.
+  - Возвращает только валидные карты.
 
 - [ ] Реализовать `fn validate_map(path: &str, units: &[UnitTypeDef]) -> Result<MapInfo, String>`:
   - Читает и парсит файл (`ron::from_str`) — ошибка парсинга → `Err`.
@@ -96,9 +102,9 @@
   - Позиции объектов в пределах `width × height` → иначе `Err`.
   - Объекты не стоят на `Obstacle`/`Water` тайлах → иначе `Err`.
   - Ровно 1 стартовая позиция героя на проходимом тайле → иначе `Err`.
-  - При успехе возвращает `MapInfo` с мета-информацией для отображения.
+  - При успехе возвращает `MapInfo` с мета-информацией (включая `name` и `description`).
 
-> Любая ошибка → `MapEntryResult::Invalid(msg)`, приложение **не паникует**.
+> Невалидный файл логируется через `warn!` и не попадает в список — приложение **не паникует**.
 
 ---
 
@@ -136,7 +142,7 @@
 struct MenuState {
     hero_name:    String,
     selected_map: Option<String>,   // path
-    maps:         Vec<MapEntry>,
+    maps:         Vec<MapInfo>,
 }
 ```
 
@@ -146,11 +152,12 @@ struct MenuState {
 - [ ] Полноэкранный фон.
 - [ ] Заголовок `"Heroes of Rust"`.
 - [ ] Поле ввода имени героя (placeholder `"Введите имя героя"`).
-- [ ] Список карт: одна кнопка на файл.
-  - Валидная карта: имя файла + `20×15 | нейтралов: 3` — кликабельна.
-  - Невалидная карта: имя файла + сообщение об ошибке — серая, некликабельна.
+- [ ] Список карт: одна кнопка на карту (только валидные).
+  - Строка 1: `name` + `20×15 | нейтралов: 3 | замков: 1`.
+  - Строка 2: `description` (меньший шрифт).
+  - Невалидные карты не отображаются; ошибки видны только в логе (`warn!`).
 - [ ] Кнопка `"Начать игру"` — изначально неактивна.
-- [ ] Заполнить `MenuState.maps` через `data::discover_maps("assets/maps/")`.
+- [ ] Заполнить `MenuState.maps` через `data::discover_maps("assets/maps/", &units)`.
 
 `despawn_menu` (в `OnExit(GameScreen::MainMenu)`):
 - [ ] `commands.entity(root).despawn_recursive()`.
@@ -189,11 +196,11 @@ struct MenuState {
 
 ### 8.6 Тесты (`src/data/mod.rs`)
 
-- [ ] `discover_maps_finds_default` — `discover_maps("assets/maps/")` возвращает ≥1 записи.
-- [ ] `valid_map_passes_validation` — `default.ron` проходит валидацию, `MapInfo` содержит корректные размеры.
-- [ ] `missing_unit_id_fails_validation` — карта с `id: "dragon"` (нет в справочнике) → `Invalid`.
-- [ ] `out_of_bounds_position_fails` — карта с объектом за пределами `width×height` → `Invalid`.
-- [ ] `object_on_obstacle_fails` — карта с объектом на `Obstacle`-тайле → `Invalid`.
+- [ ] `discover_maps_finds_default` — `discover_maps("assets/maps/", &units)` возвращает ≥1 записи.
+- [ ] `valid_map_passes_validation` — `default.ron` проходит валидацию; `MapInfo` содержит корректные размеры, `name` и `description` непустые.
+- [ ] `missing_unit_id_fails_validation` — карта с `id: "dragon"` (нет в справочнике) → `Err`.
+- [ ] `out_of_bounds_position_fails` — карта с объектом за пределами `width×height` → `Err`.
+- [ ] `object_on_obstacle_fails` — карта с объектом на `Obstacle`-тайле → `Err`.
 
 ---
 
@@ -210,9 +217,10 @@ src/
 ```
 src/main.rs             — +GameScreen::MainMenu (#[default]), +MainMenuPlugin
 src/gameover.rs         — «Играть снова» → MainMenu вместо Adventure
-src/data/mod.rs         — +MapEntry, +MapInfo, +discover_maps(), +validate_map()
+src/data/mod.rs         — +MapInfo, +discover_maps(), +validate_map(); +name/description в MapDefinition
 src/adventure/mod.rs    — OnEnter(Adventure): читать GameStartConfig, load_map, подставить имя
 src/adventure/render.rs — убрать build_initial_game_state из инициализации (заменяется конфигом)
+assets/maps/default.ron — добавить поля name и description
 ROADMAP.md              — добавить Этап 8, сдвинуть расширение в Этап 9
 ```
 
@@ -220,7 +228,7 @@ ROADMAP.md              — добавить Этап 8, сдвинуть рас
 
 ## Порядок реализации
 
-1. `src/data/mod.rs` — `MapEntry`, `MapInfo`, `discover_maps`, `validate_map` + тесты
+1. `src/data/mod.rs` — `MapInfo`, `discover_maps`, `validate_map` + тесты; `name`/`description` в `MapDefinition`
 2. `main.rs` — `GameScreen::MainMenu`, `GameStartConfig`, `MainMenuPlugin`
 3. `src/menu/mod.rs` — `setup_menu`, `despawn_menu`, логика ввода и выбора
 4. `adventure/mod.rs` — `OnEnter(Adventure)` читает `GameStartConfig`
