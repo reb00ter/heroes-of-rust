@@ -19,8 +19,9 @@
 | Юнит | id | Тир | Тип | HP | Урон | Стоимость | Рост/день |
 |------|----|-----|-----|----|------|-----------|-----------|
 | Клон Наруто | `naruto_clone` | 1 | ближний | 6 | 2 | 25 | 7 |
-| Ученик ниндзя | `ninja_student` | 2 | ближний | 12 | 4 | 60 | 3 |
+| Ученик ниндзя | `ninja_student` | 2 | дальний* | 12 | 4 | 60 | 3 |
 | Ниндзя | `ninja` | 3 | ближний | 22 | 7 | 110 | 1 |
+| Какаши | `kakashi` | 4 | ближний | 38 | 12 | 200 | 1 |
 
 Стартовая армия: 5× Клон Наруто
 
@@ -28,17 +29,18 @@
 
 ### Самодельный штаб (`diy_hq`)
 
-**Герой Егор:** атака=3, защита=0, обзор=5 *(портрет ставим вручную)*
+**Герой Егор:** атака=3, защита=0, обзор=5
 
 | Юнит | id | Тир | Тип | HP | Урон | Стоимость | Рост/день |
 |------|----|-----|-----|----|------|-----------|-----------|
 | Мальчик с кулаками | `fist_boy` | 1 | ближний | 5 | 1 | 20 | 8 |
 | Мальчик с камнем | `rock_boy` | 2 | дальний* | 8 | 3 | 45 | 4 |
 | Мальчик с обувной ложкой | `shoehorn_boy` | 3 | ближний | 18 | 6 | 90 | 2 |
+| Мальчик с закидушкой | `zakidushka_boy` | 4 | ближний | 28 | 10 | 170 | 1 |
 
 Стартовая армия: 5× Мальчик с кулаками
 
-*`ranged: true` зарезервирован в данных; механика дальнего боя — Stage 12.*
+*`ranged: true` зарезервирован в данных; механика дальнего боя — Stage 13.*
 
 ---
 
@@ -96,8 +98,9 @@ towns: [(id: 0, pos: (4,2), daily_income: 250)]
           ),
           units: [
               (id: "naruto_clone",  name: "Клон Наруто",            tier: 1, damage: 2, hp: 6,  cost: 25,  daily_growth: 7, ranged: false),
-              (id: "ninja_student", name: "Ученик ниндзя",          tier: 2, damage: 4, hp: 12, cost: 60,  daily_growth: 3, ranged: false),
+              (id: "ninja_student", name: "Ученик ниндзя",          tier: 2, damage: 4, hp: 12, cost: 60,  daily_growth: 3, ranged: true),
               (id: "ninja",         name: "Ниндзя",                 tier: 3, damage: 7, hp: 22, cost: 110, daily_growth: 1, ranged: false),
+              (id: "kakashi",       name: "Какаши",                 tier: 4, damage: 12, hp: 38, cost: 200, daily_growth: 1, ranged: false),
           ],
           starting_army: [(id: "naruto_clone", count: 5)],
       ),
@@ -107,12 +110,13 @@ towns: [(id: 0, pos: (4,2), daily_income: 250)]
           hero: (
               id: "egor", name: "Егор",
               attack: 3, defense: 0, sight_range: 5,
-              portrait: "heroes/egor",
+              portrait: "heroes/Yegor",
           ),
           units: [
-              (id: "fist_boy",     name: "Мальчик с кулаками",      tier: 1, damage: 1, hp: 5,  cost: 20, daily_growth: 8, ranged: false),
-              (id: "rock_boy",     name: "Мальчик с камнем",         tier: 2, damage: 3, hp: 8,  cost: 45, daily_growth: 4, ranged: true),
-              (id: "shoehorn_boy", name: "Мальчик с обувной ложкой", tier: 3, damage: 6, hp: 18, cost: 90, daily_growth: 2, ranged: false),
+              (id: "fist_boy",       name: "Мальчик с кулаками",        tier: 1, damage: 1,  hp: 5,  cost: 20,  daily_growth: 8, ranged: false),
+              (id: "rock_boy",       name: "Мальчик с камнем",           tier: 2, damage: 3,  hp: 8,  cost: 45,  daily_growth: 4, ranged: true),
+              (id: "shoehorn_boy",   name: "Мальчик с обувной ложкой",   tier: 3, damage: 6,  hp: 18, cost: 90,  daily_growth: 2, ranged: false),
+              (id: "zakidushka_boy", name: "Мальчик с закидушкой",       tier: 4, damage: 10, hp: 28, cost: 170, daily_growth: 1, ranged: false),
           ],
           starting_army: [(id: "fist_boy", count: 5)],
       ),
@@ -215,7 +219,7 @@ towns: [(id: 0, pos: (4,2), daily_income: 250)]
   // стартовая армия
   for stack_ref in &faction.starting_army { ... }
   ```
-- [ ] Заполнить рекрутов первого города юнитами фракции (тир 1→2→3).
+- [ ] Заполнить рекрутов первого города юнитами фракции (тир 1→2→3→4).
 - [ ] Вызвать `update_visibility` с новым `sight_range` (перенесено из `load_map`).
 
 ---
@@ -223,9 +227,8 @@ towns: [(id: 0, pos: (4,2), daily_income: 250)]
 ### 10.7 Портреты (`assets/sprites/heroes/`, `build.rs`)
 
 - [ ] `assets/sprites/heroes/src/naruto.svg` — портрет Наруто.
-- [ ] `assets/sprites/heroes/src/egor.svg` — заглушка; реальный портрет подкладывается вручную
-  как `assets/sprites/heroes/egor.png` (минуя SVG pipeline).
 - [ ] Добавить рендеринг `naruto.svg → naruto.png` в `build.rs`.
+- [ ] `assets/sprites/heroes/Yegor.png` — уже добавлен вручную, SVG pipeline не нужен.
 
 ---
 
@@ -310,8 +313,8 @@ struct MenuState {
 ```
 assets/data/factions.ron
 assets/sprites/heroes/src/naruto.svg
-assets/sprites/heroes/egor.png          (подкладывается вручную)
 assets/sprites/heroes/naruto.png        (генерируется build.rs)
+assets/sprites/heroes/Yegor.png         (уже добавлен вручную)
 ```
 
 ## Изменяемые файлы
