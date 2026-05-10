@@ -3,6 +3,7 @@
 mod adventure;
 mod battle;
 mod core;
+mod data;
 mod gameover;
 mod town;
 

@@ -16,8 +16,6 @@ pub use render::build_initial_game_state;
 // ---------------------------------------------------------------------------
 
 pub const TILE_SIZE: f32 = 48.0;
-pub const MAP_WIDTH: u32 = 20;
-pub const MAP_HEIGHT: u32 = 15;
 
 // ---------------------------------------------------------------------------
 // Bevy-ресурс, оборачивающий чистое GameState
@@ -95,8 +93,14 @@ pub struct DayText;
 // ---------------------------------------------------------------------------
 
 /// Спаунит спрайт кучки золота. Вызывается из `sync_map_objects`.
-pub(super) fn spawn_gold_pile(commands: &mut Commands, asset_server: &AssetServer, pos: Position) {
-    let world = grid_to_world(pos);
+pub(super) fn spawn_gold_pile(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    pos: Position,
+    map_w: u32,
+    map_h: u32,
+) {
+    let world = grid_to_world(pos, map_w, map_h);
     // AssetServer кэширует хэндлы по пути — повторные load() дёшевы
     let tex: Handle<Image> = asset_server.load("sprites/gold_pile.png");
     commands.spawn((
@@ -111,8 +115,8 @@ pub(super) fn spawn_gold_pile(commands: &mut Commands, asset_server: &AssetServe
 }
 
 /// Спаунит спрайт нейтрального отряда. Вызывается из `sync_map_objects`.
-pub(super) fn spawn_neutral_army(commands: &mut Commands, pos: Position) {
-    let world = grid_to_world(pos);
+pub(super) fn spawn_neutral_army(commands: &mut Commands, pos: Position, map_w: u32, map_h: u32) {
+    let world = grid_to_world(pos, map_w, map_h);
     commands.spawn((
         Sprite {
             color: Color::srgb(0.85, 0.15, 0.15),
@@ -125,8 +129,8 @@ pub(super) fn spawn_neutral_army(commands: &mut Commands, pos: Position) {
 }
 
 /// Спаунит спрайт героя. Вызывается из `sync_map_objects`.
-pub(super) fn spawn_hero(commands: &mut Commands, hero: &Hero) {
-    let world = grid_to_world(hero.position);
+pub(super) fn spawn_hero(commands: &mut Commands, hero: &Hero, map_w: u32, map_h: u32) {
+    let world = grid_to_world(hero.position, map_w, map_h);
     commands.spawn((
         Sprite {
             color: Color::srgb(0.95, 0.80, 0.10),
@@ -162,12 +166,12 @@ fn check_game_over(
 /// Карта центрируется вокруг начала координат.
 ///
 /// # Precision
-/// `MAP_WIDTH` (16) и `MAP_HEIGHT` (12) точно представимы в f32; касты безопасны.
+/// `map_w` и `map_h` не превышают нескольких десятков тайлов; касты в f32 безопасны.
 #[must_use]
 #[allow(clippy::cast_precision_loss)]
-pub fn grid_to_world(pos: Position) -> Vec2 {
-    let offset_x = -(MAP_WIDTH as f32 - 1.0) * TILE_SIZE / 2.0;
-    let offset_y = (MAP_HEIGHT as f32 - 1.0) * TILE_SIZE / 2.0;
+pub fn grid_to_world(pos: Position, map_w: u32, map_h: u32) -> Vec2 {
+    let offset_x = -(map_w as f32 - 1.0) * TILE_SIZE / 2.0;
+    let offset_y = (map_h as f32 - 1.0) * TILE_SIZE / 2.0;
     Vec2::new(
         pos.x as f32 * TILE_SIZE + offset_x,
         offset_y - pos.y as f32 * TILE_SIZE,
@@ -180,9 +184,9 @@ pub fn grid_to_world(pos: Position) -> Vec2 {
 /// После `round()` значение гарантированно в диапазоне тайлов; усечение безопасно.
 #[must_use]
 #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
-pub fn world_to_grid(world: Vec2) -> Position {
-    let offset_x = -(MAP_WIDTH as f32 - 1.0) * TILE_SIZE / 2.0;
-    let offset_y = (MAP_HEIGHT as f32 - 1.0) * TILE_SIZE / 2.0;
+pub fn world_to_grid(world: Vec2, map_w: u32, map_h: u32) -> Position {
+    let offset_x = -(map_w as f32 - 1.0) * TILE_SIZE / 2.0;
+    let offset_y = (map_h as f32 - 1.0) * TILE_SIZE / 2.0;
     Position::new(
         ((world.x - offset_x) / TILE_SIZE).round() as i32,
         ((offset_y - world.y) / TILE_SIZE).round() as i32,
@@ -233,27 +237,30 @@ impl Plugin for AdventurePlugin {
 mod tests {
     use super::*;
 
+    const W: u32 = 20;
+    const H: u32 = 15;
+
     #[test]
     fn round_trip_center() {
         let pos = Position::new(7, 5);
-        let world = grid_to_world(pos);
-        let back = world_to_grid(world);
+        let world = grid_to_world(pos, W, H);
+        let back = world_to_grid(world, W, H);
         assert_eq!(back, pos);
     }
 
     #[test]
     fn round_trip_origin() {
         let pos = Position::new(0, 0);
-        let world = grid_to_world(pos);
-        let back = world_to_grid(world);
+        let world = grid_to_world(pos, W, H);
+        let back = world_to_grid(world, W, H);
         assert_eq!(back, pos);
     }
 
     #[test]
     fn round_trip_far_corner() {
         let pos = Position::new(19, 14);
-        let world = grid_to_world(pos);
-        let back = world_to_grid(world);
+        let world = grid_to_world(pos, W, H);
+        let back = world_to_grid(world, W, H);
         assert_eq!(back, pos);
     }
 }

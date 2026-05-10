@@ -393,55 +393,58 @@
 
 ---
 
-## Этап 7 — Динамическая загрузка карт ⬜
+## Этап 7 — Динамическая загрузка карт ✅
 
 **Цель:** вынести карту из кода в RON-файл; уметь загружать любую карту без перекомпиляции; подготовить промпт для генерации карт через AI.
 
 ### 7.1 Зависимости
 
-- [ ] Добавить `serde = { version = "1", features = ["derive"] }` и `ron = "0.8"` в `Cargo.toml`
+- [x] Добавить `serde = { version = "1", features = ["derive"] }` и `ron = "0.8"` в `Cargo.toml`
 
 ### 7.2 Справочник существ
 
-- [ ] Создать `assets/data/units.ron` — характеристики и дневной рост всех типов существ
-- [ ] `UnitTypeDef { name, damage, hp, cost, daily_growth }` в `src/data/mod.rs`
+- [x] Создать `assets/data/units.ron` — характеристики и дневной рост всех типов существ
+- [x] `UnitTypeDef { id, name, damage, hp, cost, daily_growth }` в `src/data/mod.rs`
 
 ### 7.3 Формат и файл карты
 
-- [ ] Создать директорию `assets/maps/`
-- [ ] Создать `assets/maps/default.ron` — карта 20×15; ссылки на существ только по имени и количеству (`StackRef { name, count }`)
+- [x] Создать директорию `assets/maps/`
+- [x] Создать `assets/maps/default.ron` — карта 20×15; ссылки на существ только по ASCII `id` и количеству (`StackRef { id, count }`)
 
-### 7.3 Модуль данных (`src/data/mod.rs`)
+### 7.4 Модуль данных (`src/data/mod.rs`)
 
-- [ ] Объявить `MapDefinition`, `UnitEntry`, `ResourcePileDef`, `TownDef`, `NeutralArmyDef`, `HeroDef` с `#[derive(serde::Deserialize)]`
-- [ ] Реализовать `pub fn load_map(path: &str) -> GameState`
-- [ ] Реализовать `fn map_def_to_game_state(def: MapDefinition) -> GameState`
-- [ ] Подключить `mod data` в `main.rs`
+- [x] Объявить `MapDefinition`, `StackRef`, `ResourcePileDef`, `TownDef`, `NeutralArmyDef`, `HeroDef` с `#[derive(serde::Deserialize)]`
+- [x] Реализовать `pub fn load_units(path: &str) -> Vec<UnitTypeDef>`
+- [x] Реализовать `fn resolve(id: &str, units: &[UnitTypeDef]) -> UnitType`
+- [x] Реализовать `pub fn load_map(map_path: &str, units_path: &str) -> GameState`
+- [x] Реализовать `fn map_def_to_game_state(def: &MapDefinition, units: &[UnitTypeDef]) -> GameState`
+- [x] Подключить `mod data` в `main.rs`
 
-### 7.4 Упрощение `adventure/render.rs`
+### 7.5 Упрощение `adventure/render.rs`
 
-- [ ] Заменить тело `build_initial_game_state()` на `crate::data::load_map("assets/maps/default.ron", "assets/data/units.ron")`
-- [ ] Рефакторить `startup_setup` — переиспользовать `respawn_map_objects` из этапа 6
+- [x] Заменить тело `build_initial_game_state()` на однострочник `crate::data::load_map(...)`
+- [x] Рефакторить `startup_setup` — извлечь `respawn_map_objects` для спавна тайлов и городов
 
-### 7.5 Динамические размеры карты (`adventure/mod.rs`, `input.rs`)
+### 7.6 Динамические размеры карты (`adventure/mod.rs`, `input.rs`, `sync.rs`)
 
-- [ ] Убрать `pub const MAP_WIDTH` / `MAP_HEIGHT`; читать размеры из `GameStateResource`
-- [ ] `grid_to_world` / `world_to_grid` принимают размеры как параметры
-- [ ] Bounds-проверка мыши читает размеры из `GameStateResource`
+- [x] Убрать `pub const MAP_WIDTH` / `MAP_HEIGHT`; читать размеры из `gs.map.width/height`
+- [x] `grid_to_world(pos, map_w, map_h)` / `world_to_grid(world, map_w, map_h)` принимают размеры как параметры
+- [x] `spawn_gold_pile`, `spawn_neutral_army`, `spawn_hero` принимают `map_w, map_h`
+- [x] Bounds-проверка мыши читает размеры из `GameStateResource`
 
-### 7.6 Тесты (`src/data/mod.rs`)
+### 7.7 Тесты (`src/data/mod.rs`)
 
-- [ ] `load_units_parses` — справочник читается, характеристики верны
-- [ ] `unknown_unit_panics` — несуществующее имя существа даёт панику
-- [ ] `load_default_map_parses` — карта читается, `width == 20`, `height == 15`
-- [ ] `default_map_has_correct_neutrals` — 3 нейтрала, позиции и характеристики (из справочника) верны
-- [ ] `default_map_has_town` — 1 город, `daily_growth` берётся из справочника
-- [ ] `default_map_hero_start` — позиция, MP, золото, армия
-- [ ] `unknown_field_in_map_is_error` — лишнее поле в RON даёт ошибку парсинга
+- [x] `load_units_parses` — справочник читается, 5 записей, характеристики верны
+- [x] `unknown_unit_panics` — несуществующий `id` даёт panic с понятным сообщением
+- [x] `load_default_map_parses` — карта читается, `width == 20`, `height == 15`
+- [x] `default_map_has_correct_neutrals` — 3 нейтрала, позиции и характеристики (из справочника) верны
+- [x] `default_map_has_town` — 1 город, `daily_growth` берётся из `units.ron`
+- [x] `default_map_hero_start` — позиция (1,1), MP=10, армия 5 крестьян, золото 500
+- [x] `unknown_field_in_map_is_error` — лишнее поле в RON даёт ошибку парсинга
 
-### 7.7 Промпт для генерации карт
+### 7.8 Промпт для генерации карт
 
-- [ ] Создать `docs/map-generation-prompt.md` — полная схема формата, ограничения, рекомендации по балансу, пример `default.ron`, инструкция для AI
+- [x] Создать `docs/map-generation-prompt.md` — полная схема формата, ограничения, рекомендации по балансу, пример `default.ron`, инструкция для AI
 
 **Критерий готовности:** `cargo run` запускается с той же картой; удаление `default.ron` даёт понятную панику; все тесты зелёные; промпт готов.
 

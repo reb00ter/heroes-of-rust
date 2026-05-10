@@ -1,0 +1,52 @@
+(
+    width:  20,
+    height: 15,
+
+    // Только нестандартные тайлы; остальные — Ground по умолчанию
+    obstacles: [
+        (3,0),(4,0),(3,1),
+        (9,3),(9,4),(9,5),
+        (14,1),(14,2),(15,8),(15,9),
+        (6,12),(7,12),(7,13),
+        (11,11),(12,11),
+    ],
+    water: [
+        (0,13),(0,14),(1,14),(2,14),
+        (19,0),(19,1),(18,0),
+        (18,14),(19,14),(19,13),
+    ],
+
+    resource_piles: [
+        (pos: (2,5),   gold: 150),
+        (pos: (7,1),   gold: 200),
+        (pos: (10,9),  gold: 250),
+        (pos: (15,3),  gold: 300),
+        (pos: (18,12), gold: 200),
+    ],
+
+    towns: [
+        (
+            id:           0,
+            pos:          (4,2),
+            daily_income: 250,
+            recruits: [
+                (id: "peasant",   count: 10),
+                (id: "swordsman", count: 5),
+            ],
+        ),
+    ],
+
+    neutral_armies: [
+        (pos: (7,5),   units: [(id: "goblin", count: 5)]),
+        (pos: (13,6),  units: [(id: "orc",    count: 4)]),
+        (pos: (17,10), units: [(id: "troll",  count: 2)]),
+    ],
+
+    hero: (
+        pos:             (1,1),
+        name:            "Aldric",
+        movement_points: 10,
+        army:            [(id: "peasant", count: 5)],
+        starting_gold:   500,
+    ),
+)

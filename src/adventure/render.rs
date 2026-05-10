@@ -1,14 +1,11 @@
 use bevy::prelude::*;
 
-use crate::core::hero::{Army, Hero, HeroId, UnitStack, UnitType};
-use crate::core::map::{AdventureMap, MapObject, TileKind};
-use crate::core::player::{Player, PlayerId, Town, TownId};
-use crate::core::resources::ResourceBag;
+use crate::core::map::TileKind;
 use crate::core::state::GameState;
 
 use super::{
-    ArmyText, BannerKind, DayText, GameStateResource, GoldText, HoverHighlight, MAP_HEIGHT,
-    MAP_WIDTH, MovementPointsText, ShowBanner, TILE_SIZE, TileMarker, TownMarker, grid_to_world,
+    ArmyText, BannerKind, DayText, GameStateResource, GoldText, HoverHighlight, MovementPointsText,
+    ShowBanner, TILE_SIZE, TileMarker, TownMarker, grid_to_world,
 };
 
 // ---------------------------------------------------------------------------
@@ -24,181 +21,16 @@ const COLOR_HOVER: Color = Color::srgba(1.0, 1.0, 1.0, 0.30);
 // Стартовое состояние игры
 // ---------------------------------------------------------------------------
 
-/// Создаёт стартовое состояние игры для вертикального среза: карта 20×15 с тремя нейтральными
-/// отрядами, городом и стартовой армией героя.
-#[allow(clippy::too_many_lines)]
+/// Делегирует построение состояния загрузчику карт.
 pub fn build_initial_game_state() -> GameState {
-    let mut map = AdventureMap::new(MAP_WIDTH, MAP_HEIGHT);
-
-    // Группы скал-препятствий
-    let obstacles = [
-        // Скалы севернее старта
-        (3, 0),
-        (4, 0),
-        (3, 1),
-        // Центральный барьер
-        (9, 3),
-        (9, 4),
-        (9, 5),
-        // Восточный регион
-        (14, 1),
-        (14, 2),
-        (15, 8),
-        (15, 9),
-        // Юг
-        (6, 12),
-        (7, 12),
-        (7, 13),
-        (11, 11),
-        (12, 11),
-    ];
-    for (x, y) in obstacles {
-        if let Some(tile) = map.get_mut(crate::core::map::Position::new(x, y)) {
-            tile.kind = TileKind::Obstacle;
-        }
-    }
-
-    // Вода по углам карты
-    let water = [
-        (0, 13),
-        (0, 14),
-        (1, 14),
-        (2, 14),
-        (19, 0),
-        (19, 1),
-        (18, 0),
-        (18, 14),
-        (19, 14),
-        (19, 13),
-    ];
-    for (x, y) in water {
-        if let Some(tile) = map.get_mut(crate::core::map::Position::new(x, y)) {
-            tile.kind = TileKind::Water;
-        }
-    }
-
-    // Кучки золота на карте
-    let gold_piles: [(i32, i32, u32); 5] = [
-        (2, 5, 150),
-        (7, 1, 200),
-        (10, 9, 250),
-        (15, 3, 300),
-        (18, 12, 200),
-    ];
-    for (x, y, amount) in gold_piles {
-        if let Some(tile) = map.get_mut(crate::core::map::Position::new(x, y)) {
-            tile.object = Some(MapObject::ResourcePile(ResourceBag::gold(amount)));
-        }
-    }
-
-    // Типы существ для найма в городе
-    let peasant = UnitType {
-        name: "Крестьянин".to_string(),
-        damage_per_unit: 1,
-        hp: 5,
-        cost: ResourceBag::gold(25),
-    };
-    let swordsman = UnitType {
-        name: "Мечник".to_string(),
-        damage_per_unit: 3,
-        hp: 10,
-        cost: ResourceBag::gold(75),
-    };
-
-    // Стартовая армия героя — 5 крестьян
-    let peasant_starter = UnitType {
-        name: "Крестьянин".to_string(),
-        damage_per_unit: 1,
-        hp: 5,
-        cost: ResourceBag::gold(25),
-    };
-
-    // Город ближе к старту
-    let mut town = Town::new(
-        TownId(0),
-        crate::core::map::Position::new(4, 2),
-        ResourceBag::gold(250),
-    );
-    town.available_recruits = vec![(peasant, 10), (swordsman, 5)];
-    town.daily_growth = vec![5, 2];
-
-    // Объект города на тайле карты
-    if let Some(tile) = map.get_mut(crate::core::map::Position::new(4, 2)) {
-        tile.object = Some(MapObject::Town(TownId(0)));
-    }
-
-    // Нейтральные отряды трёх уровней сложности
-    let goblin = UnitType {
-        name: "Гоблин".to_string(),
-        damage_per_unit: 2,
-        hp: 5,
-        cost: ResourceBag::gold(0),
-    };
-    let orc = UnitType {
-        name: "Орк".to_string(),
-        damage_per_unit: 4,
-        hp: 10,
-        cost: ResourceBag::gold(0),
-    };
-    let troll = UnitType {
-        name: "Тролль".to_string(),
-        damage_per_unit: 8,
-        hp: 25,
-        cost: ResourceBag::gold(0),
-    };
-
-    if let Some(tile) = map.get_mut(crate::core::map::Position::new(7, 5)) {
-        tile.object = Some(MapObject::NeutralArmy(Army(vec![UnitStack::new(
-            goblin, 5,
-        )])));
-    }
-    if let Some(tile) = map.get_mut(crate::core::map::Position::new(13, 6)) {
-        tile.object = Some(MapObject::NeutralArmy(Army(vec![UnitStack::new(orc, 4)])));
-    }
-    if let Some(tile) = map.get_mut(crate::core::map::Position::new(17, 10)) {
-        tile.object = Some(MapObject::NeutralArmy(Army(vec![UnitStack::new(troll, 2)])));
-    }
-
-    // Герой со стартовой армией
-    let mut hero = Hero {
-        id: HeroId(0),
-        name: "Aldric".to_string(),
-        position: crate::core::map::Position::new(1, 1),
-        army: Army::new(),
-        movement_points: 10,
-        movement_points_max: 10,
-    };
-    let _ = hero.army.add_stack(UnitStack::new(peasant_starter, 5));
-
-    // Игрок
-    let mut player = Player::new(PlayerId(0));
-    player.hero_ids.push(HeroId(0));
-    player.resources = ResourceBag::gold(500);
-
-    let obj_count = obstacles.len() + water.len();
-    info!(
-        "[ADVENTURE] Game initialized. Map: {}x{}, obstacles+water: {}, gold piles: {}, neutrals: 3. Hero army: [Peasants x5].",
-        MAP_WIDTH,
-        MAP_HEIGHT,
-        obj_count,
-        gold_piles.len()
-    );
-
-    GameState {
-        map,
-        players: vec![player],
-        heroes: vec![hero],
-        towns: vec![town],
-        current_day: 1,
-        active_player_id: PlayerId(0),
-    }
+    crate::data::load_map("assets/maps/default.ron", "assets/data/units.ron")
 }
 
 // ---------------------------------------------------------------------------
-// Startup-система: спавн сущностей (только статика)
+// Startup-система: камера, статические тайлы, UI
 // ---------------------------------------------------------------------------
 
-#[allow(clippy::needless_pass_by_value, clippy::too_many_lines)]
+#[allow(clippy::needless_pass_by_value)]
 pub fn startup_setup(
     mut commands: Commands,
     game_state: Res<GameStateResource>,
@@ -210,12 +42,35 @@ pub fn startup_setup(
     // Камера по центру карты (мировой центр = (0,0))
     commands.spawn(Camera2d);
 
+    respawn_map_objects(&mut commands, gs);
+
+    // --- Подсветка курсора (изначально скрыта) ---
+    commands.spawn((
+        Sprite {
+            color: COLOR_HOVER,
+            custom_size: Some(Vec2::splat(TILE_SIZE - 1.0)),
+            ..default()
+        },
+        Transform::from_xyz(0.0, 0.0, 3.0),
+        Visibility::Hidden,
+        HoverHighlight,
+    ));
+
+    spawn_ui(&mut commands, gs, font);
+}
+
+/// Спавнит статические тайлы карты и города.
+/// Вызывается из `startup_setup`; может быть вызвана повторно при рестарте.
+pub(super) fn respawn_map_objects(commands: &mut Commands, gs: &GameState) {
+    let map_w = gs.map.width;
+    let map_h = gs.map.height;
+
     // --- Тайлы карты (Z=0) ---
-    for y in 0..MAP_HEIGHT {
-        for x in 0..MAP_WIDTH {
-            #[allow(clippy::cast_possible_wrap)] // x,y < 16/12, не переполнят i32
+    for y in 0..map_h {
+        for x in 0..map_w {
+            #[allow(clippy::cast_possible_wrap)]
             let pos = crate::core::map::Position::new(x as i32, y as i32);
-            let world = grid_to_world(pos);
+            let world = grid_to_world(pos, map_w, map_h);
 
             let color = match gs.map.get(pos) {
                 Some(tile) => match tile.kind {
@@ -238,9 +93,9 @@ pub fn startup_setup(
         }
     }
 
-    // --- Города (Z=1, статика — не меняются в текущей версии) ---
+    // --- Города (Z=1, статика) ---
     for town in &gs.towns {
-        let world = grid_to_world(town.position);
+        let world = grid_to_world(town.position, map_w, map_h);
         commands.spawn((
             Sprite {
                 color: Color::srgb(0.55, 0.40, 0.80),
@@ -251,20 +106,6 @@ pub fn startup_setup(
             TownMarker(town.id),
         ));
     }
-
-    // --- Подсветка курсора (изначально скрыта) ---
-    commands.spawn((
-        Sprite {
-            color: COLOR_HOVER,
-            custom_size: Some(Vec2::splat(TILE_SIZE - 1.0)),
-            ..default()
-        },
-        Transform::from_xyz(0.0, 0.0, 3.0),
-        Visibility::Hidden,
-        HoverHighlight,
-    ));
-
-    spawn_ui(&mut commands, gs, font);
 }
 
 /// Спавнит все UI-элементы на экране (MP, золото, день, подсказка).
@@ -441,7 +282,7 @@ pub fn tick_banner(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::map::Position;
+    use crate::core::map::{MapObject, Position};
 
     #[test]
     fn three_neutral_armies_on_map() {

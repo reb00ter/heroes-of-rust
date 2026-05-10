@@ -6,9 +6,9 @@ use crate::core::hero::HeroId;
 use crate::core::map::{MapObject, Position};
 
 use super::{
-    ArmyText, DayText, GameStateResource, GoldText, HeroMarker, MAP_HEIGHT, MAP_WIDTH,
-    MovementHighlight, MovementPointsText, NeutralArmyMarker, ResourcePileMarker, TILE_SIZE,
-    grid_to_world, spawn_gold_pile, spawn_hero, spawn_neutral_army,
+    ArmyText, DayText, GameStateResource, GoldText, HeroMarker, MovementHighlight,
+    MovementPointsText, NeutralArmyMarker, ResourcePileMarker, TILE_SIZE, grid_to_world,
+    spawn_gold_pile, spawn_hero, spawn_neutral_army,
 };
 
 // ---------------------------------------------------------------------------
@@ -37,9 +37,12 @@ pub fn update_available_moves(
         return;
     }
 
+    let map_w = gs.map.width;
+    let map_h = gs.map.height;
+
     for neighbor in gs.map.neighbors(hero.position) {
         if gs.map.is_passable(neighbor) {
-            let world = grid_to_world(neighbor);
+            let world = grid_to_world(neighbor, map_w, map_h);
             commands.spawn((
                 Sprite {
                     color: Color::srgba(0.25, 0.80, 0.40, 0.45),
@@ -75,20 +78,22 @@ pub fn sync_map_objects(
         return;
     }
     let gs = &game_state.0;
+    let map_w = gs.map.width;
+    let map_h = gs.map.height;
 
     // --- Кучки золота ---
     let pile_entities: HashMap<Position, Entity> = pile_q.iter().map(|(e, m)| (m.0, e)).collect();
 
     #[allow(clippy::cast_possible_wrap)]
-    for y in 0..MAP_HEIGHT {
-        for x in 0..MAP_WIDTH {
+    for y in 0..map_h {
+        for x in 0..map_w {
             let pos = Position::new(x as i32, y as i32);
             if matches!(
                 gs.map.get(pos).and_then(|t| t.object.as_ref()),
                 Some(MapObject::ResourcePile(_))
             ) && !pile_entities.contains_key(&pos)
             {
-                spawn_gold_pile(&mut commands, &asset_server, pos);
+                spawn_gold_pile(&mut commands, &asset_server, pos, map_w, map_h);
             }
         }
     }
@@ -105,15 +110,15 @@ pub fn sync_map_objects(
     let army_entities: HashMap<Position, Entity> = army_q.iter().map(|(e, m)| (m.0, e)).collect();
 
     #[allow(clippy::cast_possible_wrap)]
-    for y in 0..MAP_HEIGHT {
-        for x in 0..MAP_WIDTH {
+    for y in 0..map_h {
+        for x in 0..map_w {
             let pos = Position::new(x as i32, y as i32);
             if matches!(
                 gs.map.get(pos).and_then(|t| t.object.as_ref()),
                 Some(MapObject::NeutralArmy(_))
             ) && !army_entities.contains_key(&pos)
             {
-                spawn_neutral_army(&mut commands, pos);
+                spawn_neutral_army(&mut commands, pos, map_w, map_h);
             }
         }
     }
@@ -132,7 +137,7 @@ pub fn sync_map_objects(
     let mut seen_ids: HashSet<HeroId> = HashSet::new();
     for (_, marker, mut transform) in &mut hero_q {
         if let Some(hero) = gs.heroes.iter().find(|h| h.id == marker.0) {
-            let world = grid_to_world(hero.position);
+            let world = grid_to_world(hero.position, map_w, map_h);
             transform.translation.x = world.x;
             transform.translation.y = world.y;
             seen_ids.insert(marker.0);
@@ -140,7 +145,7 @@ pub fn sync_map_objects(
     }
     for hero in &gs.heroes {
         if !seen_ids.contains(&hero.id) {
-            spawn_hero(&mut commands, hero);
+            spawn_hero(&mut commands, hero, map_w, map_h);
         }
     }
 }
@@ -201,6 +206,24 @@ pub fn update_resource_ui(
 // Обновление UI текущего дня
 // ---------------------------------------------------------------------------
 
+/// Обновляет текст `"День X"` при изменении `GameState`.
+#[allow(clippy::needless_pass_by_value)]
+pub fn update_day_ui(
+    game_state: Res<GameStateResource>,
+    mut text_q: Query<&mut Text, With<DayText>>,
+) {
+    if !game_state.is_changed() {
+        return;
+    }
+
+    let gs = &game_state.0;
+    let new_text = format!("День {}", gs.current_day);
+
+    for mut text in &mut text_q {
+        (**text).clone_from(&new_text);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Обновление UI армии
 // ---------------------------------------------------------------------------
@@ -231,24 +254,6 @@ pub fn update_army_ui(
             }
         },
     );
-    for mut text in &mut text_q {
-        (**text).clone_from(&new_text);
-    }
-}
-
-/// Обновляет текст `"День X"` при изменении `GameState`.
-#[allow(clippy::needless_pass_by_value)]
-pub fn update_day_ui(
-    game_state: Res<GameStateResource>,
-    mut text_q: Query<&mut Text, With<DayText>>,
-) {
-    if !game_state.is_changed() {
-        return;
-    }
-
-    let gs = &game_state.0;
-    let new_text = format!("День {}", gs.current_day);
-
     for mut text in &mut text_q {
         (**text).clone_from(&new_text);
     }

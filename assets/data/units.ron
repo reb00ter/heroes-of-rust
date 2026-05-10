@@ -1,0 +1,7 @@
+[
+    (id: "peasant",   name: "Крестьянин", damage: 1, hp: 5,  cost: 25, daily_growth: 5),
+    (id: "swordsman", name: "Мечник",     damage: 3, hp: 10, cost: 75, daily_growth: 2),
+    (id: "goblin",    name: "Гоблин",     damage: 2, hp: 5,  cost: 0,  daily_growth: 0),
+    (id: "orc",       name: "Орк",        damage: 4, hp: 10, cost: 0,  daily_growth: 0),
+    (id: "troll",     name: "Тролль",     damage: 8, hp: 25, cost: 0,  daily_growth: 0),
+]
