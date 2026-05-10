@@ -6,8 +6,9 @@ use crate::core::state::GameState;
 use crate::core::map::VisibilityState;
 
 use super::{
-    ArmyText, BannerKind, DayText, FogOverlay, GoldText, GridLine, HintText, HoverHighlight,
-    MovementPointsText, ShowBanner, TILE_SIZE, TileMarker, TownMarker, grid_to_world,
+    ArmyText, BannerKind, DayText, FogOverlay, GoldText, GridLine, HeroPortraitUI, HeroStatsText,
+    HintText, HoverHighlight, MovementPointsText, ShowBanner, TILE_SIZE, TileMarker, TownMarker,
+    grid_to_world,
 };
 
 // ---------------------------------------------------------------------------
@@ -163,9 +164,16 @@ pub(super) fn respawn_map_objects(commands: &mut Commands, gs: &GameState) {
     }
 }
 
-/// Спавнит UI-панель приключения (MP, золото, день, армия, подсказка).
+/// Спавнит UI-панель приключения (MP, золото, день, армия, портрет, подсказка).
 /// Вызывается из `load_map_from_config` при каждом старте новой игры.
-pub(super) fn spawn_adventure_ui(commands: &mut Commands, gs: &GameState, font: Handle<Font>) {
+#[allow(clippy::too_many_lines)]
+pub(super) fn spawn_adventure_ui(
+    commands: &mut Commands,
+    gs: &GameState,
+    font: Handle<Font>,
+    portrait_path: &str,
+    asset_server: &AssetServer,
+) {
     let mp = gs.heroes.first().map_or(0, |h| h.movement_points);
     let mp_max = gs.heroes.first().map_or(0, |h| h.movement_points_max);
 
@@ -242,7 +250,7 @@ pub(super) fn spawn_adventure_ui(commands: &mut Commands, gs: &GameState, font: 
     commands.spawn((
         Text::new("WASD / стрелки — ход | ЛКМ — кликнуть клетку | Space — завершить ход"),
         TextFont {
-            font,
+            font: font.clone(),
             font_size: 16.0,
             ..default()
         },
@@ -254,6 +262,42 @@ pub(super) fn spawn_adventure_ui(commands: &mut Commands, gs: &GameState, font: 
             ..default()
         },
         HintText,
+    ));
+
+    // Портрет героя (правый нижний угол)
+    if !portrait_path.is_empty() {
+        let portrait_tex: Handle<Image> = asset_server.load(portrait_path.to_owned());
+        commands.spawn((
+            ImageNode::new(portrait_tex),
+            Node {
+                position_type: PositionType::Absolute,
+                right: Val::Px(12.0),
+                bottom: Val::Px(44.0),
+                width: Val::Px(80.0),
+                height: Val::Px(100.0),
+                ..default()
+            },
+            HeroPortraitUI,
+        ));
+    }
+
+    // Характеристики героя под портретом
+    let (atk, def) = gs.heroes.first().map_or((0, 0), |h| (h.attack, h.defense));
+    commands.spawn((
+        Text::new(format!("⚔{atk}  🛡{def}")),
+        TextFont {
+            font,
+            font_size: 18.0,
+            ..default()
+        },
+        TextColor(Color::srgb(0.90, 0.85, 0.50)),
+        Node {
+            position_type: PositionType::Absolute,
+            right: Val::Px(12.0),
+            bottom: Val::Px(12.0),
+            ..default()
+        },
+        HeroStatsText,
     ));
 }
 

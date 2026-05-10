@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use rand::thread_rng;
 
 use crate::GameScreen;
-use crate::data::{MapInfo, discover_maps, load_units};
+use crate::data::{HeroRosterDef, MapInfo, discover_maps, load_heroes, load_units};
 
 // ---------------------------------------------------------------------------
 // Компоненты
@@ -32,6 +32,16 @@ struct StartButtonText;
 #[derive(Component)]
 struct RandomNameButton;
 
+#[derive(Component)]
+struct HeroCard {
+    hero_id: String,
+}
+
+#[derive(Component)]
+struct HeroCardBg {
+    hero_id: String,
+}
+
 // ---------------------------------------------------------------------------
 // Ресурс состояния меню
 // ---------------------------------------------------------------------------
@@ -40,7 +50,9 @@ struct RandomNameButton;
 struct MenuState {
     hero_name: String,
     selected_map_index: Option<usize>,
+    selected_hero_id: Option<String>,
     maps: Vec<MapInfo>,
+    heroes: Vec<HeroRosterDef>,
 }
 
 // ---------------------------------------------------------------------------
@@ -59,6 +71,7 @@ impl Plugin for MainMenuPlugin {
                 (
                     handle_hero_name_input,
                     handle_map_selection,
+                    handle_hero_selection,
                     update_start_button,
                     handle_start_button,
                     handle_random_name_button,
@@ -81,7 +94,9 @@ fn setup_menu(
 ) {
     let units = load_units("assets/data/units.ron");
     menu_state.maps = discover_maps("assets/maps/", &units);
+    menu_state.heroes = load_heroes("assets/data/heroes.ron");
     menu_state.hero_name = String::new();
+    menu_state.selected_hero_id = None;
     menu_state.selected_map_index = if menu_state.maps.len() == 1 {
         Some(0)
     } else {
@@ -89,8 +104,9 @@ fn setup_menu(
     };
 
     info!(
-        "[MENU] Setup. Found {} valid map(s).",
-        menu_state.maps.len()
+        "[MENU] Setup. Found {} valid map(s), {} heroes.",
+        menu_state.maps.len(),
+        menu_state.heroes.len()
     );
 
     let font: Handle<Font> = asset_server.load("fonts/Roboto-Regular.ttf");
@@ -110,6 +126,7 @@ fn setup_menu(
         })
         .collect();
     let initial_selected = menu_state.selected_map_index;
+    let heroes_snapshot: Vec<HeroRosterDef> = menu_state.heroes.clone();
 
     // Корневой контейнер — полноэкранный фон
     let root = commands
@@ -121,7 +138,7 @@ fn setup_menu(
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(24.0),
+                row_gap: Val::Px(18.0),
                 ..default()
             },
             BackgroundColor(Color::srgb(0.06, 0.06, 0.10)),
@@ -136,14 +153,111 @@ fn setup_menu(
             Text::new("Heroes of Rust"),
             TextFont {
                 font: font.clone(),
-                font_size: 64.0,
+                font_size: 56.0,
                 ..default()
             },
             TextColor(Color::srgb(0.95, 0.80, 0.20)),
         ))
         .id();
 
-    // Строка с полем имени
+    // === Панель выбора героя ===
+    let hero_label = commands
+        .spawn((
+            Text::new("Выберите героя:"),
+            TextFont {
+                font: font.clone(),
+                font_size: 18.0,
+                ..default()
+            },
+            TextColor(Color::srgb(0.75, 0.75, 0.80)),
+        ))
+        .id();
+
+    let hero_row = commands
+        .spawn(Node {
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(12.0),
+            ..default()
+        })
+        .id();
+
+    let mut hero_card_entities: Vec<Entity> = Vec::new();
+    for hero_def in &heroes_snapshot {
+        let card = commands
+            .spawn((
+                Button,
+                Node {
+                    width: Val::Px(148.0),
+                    height: Val::Px(190.0),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::FlexStart,
+                    padding: UiRect::all(Val::Px(8.0)),
+                    row_gap: Val::Px(6.0),
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                BorderColor::all(Color::srgb(0.35, 0.35, 0.50)),
+                BackgroundColor(Color::srgb(0.10, 0.10, 0.18)),
+                HeroCard {
+                    hero_id: hero_def.id.clone(),
+                },
+                HeroCardBg {
+                    hero_id: hero_def.id.clone(),
+                },
+            ))
+            .id();
+
+        // Портрет
+        let portrait_path = format!("sprites/{}.png", hero_def.portrait);
+        let portrait_tex: Handle<Image> = asset_server.load(portrait_path);
+        let portrait = commands
+            .spawn((
+                ImageNode::new(portrait_tex),
+                Node {
+                    width: Val::Px(128.0),
+                    height: Val::Px(160.0),
+                    ..default()
+                },
+            ))
+            .id();
+
+        // Имя героя
+        let hero_name_text = commands
+            .spawn((
+                Text::new(hero_def.name.clone()),
+                TextFont {
+                    font: font.clone(),
+                    font_size: 15.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ))
+            .id();
+
+        // Характеристики
+        let stats_text = commands
+            .spawn((
+                Text::new(format!(
+                    "⚔{} 🛡{} 👁{}",
+                    hero_def.attack, hero_def.defense, hero_def.sight_range
+                )),
+                TextFont {
+                    font: font.clone(),
+                    font_size: 13.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.85, 0.85, 0.60)),
+            ))
+            .id();
+
+        commands
+            .entity(card)
+            .add_children(&[portrait, hero_name_text, stats_text]);
+        hero_card_entities.push(card);
+    }
+
+    // === Поле имени ===
     let name_row = commands
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -153,12 +267,11 @@ fn setup_menu(
         })
         .id();
 
-    // Поле ввода имени (симуляция через TextNode)
     let name_box = commands
         .spawn((
             Node {
                 width: Val::Px(300.0),
-                height: Val::Px(48.0),
+                height: Val::Px(44.0),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::FlexStart,
                 padding: UiRect::axes(Val::Px(12.0), Val::Px(0.0)),
@@ -175,7 +288,7 @@ fn setup_menu(
             Text::new("Введите имя героя"),
             TextFont {
                 font: font.clone(),
-                font_size: 20.0,
+                font_size: 18.0,
                 ..default()
             },
             TextColor(Color::srgb(0.45, 0.45, 0.55)),
@@ -183,13 +296,12 @@ fn setup_menu(
         ))
         .id();
 
-    // Кнопка случайного имени
     let random_btn = commands
         .spawn((
             Button,
             Node {
-                width: Val::Px(48.0),
-                height: Val::Px(48.0),
+                width: Val::Px(44.0),
+                height: Val::Px(44.0),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 border: UiRect::all(Val::Px(2.0)),
@@ -206,37 +318,35 @@ fn setup_menu(
             Text::new("Сл."),
             TextFont {
                 font: font.clone(),
-                font_size: 14.0,
+                font_size: 13.0,
                 ..default()
             },
             TextColor(Color::srgb(0.85, 0.85, 0.95)),
         ))
         .id();
 
-    // Метка «Выберите карту»
+    // === Список карт ===
     let map_label = commands
         .spawn((
             Text::new("Выберите карту:"),
             TextFont {
                 font: font.clone(),
-                font_size: 20.0,
+                font_size: 18.0,
                 ..default()
             },
             TextColor(Color::srgb(0.75, 0.75, 0.80)),
         ))
         .id();
 
-    // Контейнер списка карт
     let map_list = commands
         .spawn(Node {
             flex_direction: FlexDirection::Column,
-            row_gap: Val::Px(6.0),
-            width: Val::Px(500.0),
+            row_gap: Val::Px(5.0),
+            width: Val::Px(520.0),
             ..default()
         })
         .id();
 
-    // Кнопки карт
     let mut map_btn_entities: Vec<Entity> = Vec::new();
     for (i, (name, description, width, height, neutral_count, town_count)) in
         maps_snapshot.iter().enumerate()
@@ -253,7 +363,7 @@ fn setup_menu(
                 Button,
                 Node {
                     width: Val::Percent(100.0),
-                    padding: UiRect::all(Val::Px(10.0)),
+                    padding: UiRect::all(Val::Px(8.0)),
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::FlexStart,
                     border: UiRect::all(Val::Px(1.0)),
@@ -272,7 +382,7 @@ fn setup_menu(
                 )),
                 TextFont {
                     font: font.clone(),
-                    font_size: 17.0,
+                    font_size: 15.0,
                     ..default()
                 },
                 TextColor(Color::WHITE),
@@ -287,7 +397,7 @@ fn setup_menu(
                     Text::new(description.clone()),
                     TextFont {
                         font: font.clone(),
-                        font_size: 13.0,
+                        font_size: 12.0,
                         ..default()
                     },
                     TextColor(Color::srgb(0.65, 0.65, 0.70)),
@@ -305,7 +415,7 @@ fn setup_menu(
                 Text::new("Карты не найдены"),
                 TextFont {
                     font: font.clone(),
-                    font_size: 18.0,
+                    font_size: 16.0,
                     ..default()
                 },
                 TextColor(Color::srgb(0.80, 0.30, 0.30)),
@@ -314,13 +424,13 @@ fn setup_menu(
         commands.entity(map_list).add_child(no_maps);
     }
 
-    // Кнопка «Начать игру»
+    // === Кнопка «Начать игру» ===
     let start_btn = commands
         .spawn((
             Button,
             Node {
                 width: Val::Px(220.0),
-                height: Val::Px(58.0),
+                height: Val::Px(52.0),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 border: UiRect::all(Val::Px(2.0)),
@@ -337,7 +447,7 @@ fn setup_menu(
             Text::new("Начать игру"),
             TextFont {
                 font,
-                font_size: 24.0,
+                font_size: 22.0,
                 ..default()
             },
             TextColor(Color::srgb(0.45, 0.45, 0.50)),
@@ -351,13 +461,16 @@ fn setup_menu(
     commands
         .entity(name_row)
         .add_children(&[name_box, random_btn]);
+    for e in &hero_card_entities {
+        commands.entity(hero_row).add_child(*e);
+    }
     for e in &map_btn_entities {
         commands.entity(map_list).add_child(*e);
     }
     commands.entity(start_btn).add_child(start_btn_text);
-    commands
-        .entity(root)
-        .add_children(&[title, name_row, map_label, map_list, start_btn]);
+    commands.entity(root).add_children(&[
+        title, hero_label, hero_row, name_row, map_label, map_list, start_btn,
+    ]);
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -379,13 +492,11 @@ fn handle_hero_name_input(
         if event.state != ButtonState::Pressed {
             continue;
         }
-        // Backspace — удалить последний символ
         if event.key_code == KeyCode::Backspace {
             menu_state.hero_name.pop();
             changed = true;
             continue;
         }
-        // Печатаемые символы — через поле text
         if let Some(text) = &event.text {
             let s = text.as_str();
             if s.chars().all(|c| !c.is_control()) && menu_state.hero_name.len() + s.len() <= 20 {
@@ -441,6 +552,59 @@ fn handle_map_selection(
     }
 }
 
+/// Обрабатывает клик по карточке героя.
+#[allow(clippy::needless_pass_by_value, clippy::collapsible_if)]
+fn handle_hero_selection(
+    mut menu_state: ResMut<MenuState>,
+    interaction_q: Query<(&Interaction, &HeroCard), Changed<Interaction>>,
+    mut card_bg_q: Query<(&HeroCardBg, &mut BackgroundColor)>,
+    mut name_q: Query<(&mut Text, &mut TextColor), With<HeroNameDisplay>>,
+) {
+    let mut newly_selected: Option<String> = None;
+    for (interaction, card) in &interaction_q {
+        if *interaction == Interaction::Pressed {
+            newly_selected = Some(card.hero_id.clone());
+        }
+    }
+
+    let Some(new_id) = newly_selected else {
+        return;
+    };
+
+    // Предзаполнить имя, если поле пустое или совпадает с именем другого героя из ростера
+    let new_hero_name = menu_state
+        .heroes
+        .iter()
+        .find(|h| h.id == new_id)
+        .map(|h| h.name.clone());
+
+    let current_is_roster_name = menu_state
+        .heroes
+        .iter()
+        .any(|h| h.name == menu_state.hero_name);
+
+    if menu_state.hero_name.is_empty() || current_is_roster_name {
+        if let Some(name) = new_hero_name {
+            menu_state.hero_name.clone_from(&name);
+            if let Ok((mut text, mut color)) = name_q.single_mut() {
+                (**text).clone_from(&menu_state.hero_name);
+                color.0 = Color::WHITE;
+            }
+        }
+    }
+
+    menu_state.selected_hero_id = Some(new_id.clone());
+    info!("[MENU] Hero selected: {new_id}");
+
+    for (card_bg, mut bg) in &mut card_bg_q {
+        bg.0 = if card_bg.hero_id == new_id {
+            Color::srgb(0.22, 0.40, 0.22)
+        } else {
+            Color::srgb(0.10, 0.10, 0.18)
+        };
+    }
+}
+
 /// Обновляет вид кнопки «Начать игру» в зависимости от состояния ввода.
 #[allow(clippy::needless_pass_by_value)]
 fn update_start_button(
@@ -452,7 +616,9 @@ fn update_start_button(
         return;
     }
 
-    let active = !menu_state.hero_name.is_empty() && menu_state.selected_map_index.is_some();
+    let active = !menu_state.hero_name.is_empty()
+        && menu_state.selected_map_index.is_some()
+        && menu_state.selected_hero_id.is_some();
 
     for mut bg in &mut btn_q {
         bg.0 = if active {
@@ -488,18 +654,28 @@ fn handle_start_button(
         if menu_state.hero_name.is_empty() {
             continue;
         }
+        let Some(ref hero_id) = menu_state.selected_hero_id else {
+            continue;
+        };
         let Some(map_info) = menu_state.maps.get(idx) else {
+            continue;
+        };
+        let Some(hero_def) = menu_state.heroes.iter().find(|h| &h.id == hero_id) else {
             continue;
         };
 
         info!(
-            "[MENU] Starting game. Hero: '{}', Map: '{}'",
-            menu_state.hero_name, map_info.path
+            "[MENU] Starting game. Hero: '{}' ({}), Map: '{}'",
+            menu_state.hero_name, hero_id, map_info.path
         );
 
         commands.insert_resource(crate::GameStartConfig {
             map_path: map_info.path.clone(),
             hero_name: menu_state.hero_name.clone(),
+            hero_attack: hero_def.attack,
+            hero_defense: hero_def.defense,
+            hero_sight: hero_def.sight_range,
+            hero_portrait: format!("sprites/{}.png", hero_def.portrait),
         });
         next_state.set(GameScreen::Adventure);
     }

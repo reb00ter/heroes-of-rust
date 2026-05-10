@@ -418,6 +418,8 @@ mod tests {
             movement_points: 5,
             movement_points_max: 5,
             sight_range: 4,
+            attack: 0,
+            defense: 0,
         };
 
         let mut player = Player::new(PlayerId(1));

@@ -529,45 +529,45 @@
 
 ---
 
-## Этап 10 — Выбор героя ⬜
+## Этап 10 — Выбор героя ✅
 
 **Цель:** дать выбор из ростера заранее определённых героев с уникальными характеристиками.
 
 ### 10.1 Ростер и данные
 
-- [ ] `assets/data/heroes.ron` — 3 героя: Альдрик (⚔2/🛡1/👁4), Валерия (⚔1/🛡0/👁6), Горм (⚔3/🛡0/👁3)
-- [ ] `HeroRosterDef { id, name, attack, defense, sight_range, portrait }` в `src/data/mod.rs`
-- [ ] `load_heroes(path) -> Vec<HeroRosterDef>`
+- [x] `assets/data/heroes.ron` — 3 героя: Альдрик (⚔2/🛡1/👁4), Валерия (⚔1/🛡0/👁6), Горм (⚔3/🛡0/👁3)
+- [x] `HeroRosterDef { id, name, attack, defense, sight_range, portrait }` в `src/data/mod.rs`
+- [x] `load_heroes(path) -> Vec<HeroRosterDef>`
 
 ### 10.2 Модель и бой
 
-- [ ] `Hero::attack` и `Hero::defense` — влияют на урон в бою
-- [ ] `BattleState::attacker_attack/defense_bonus` — применяются в `attack()`
+- [x] `Hero::attack` и `Hero::defense` — влияют на урон в бою
+- [x] `BattleState::attacker_attack/defense_bonus` — применяются в `attack()`
 
 ### 10.3 Портреты
 
-- [ ] 3 SVG-портрета → PNG через `build.rs`
+- [x] 3 SVG-портрета → PNG через `build.rs`
 
 ### 10.4 Меню и UI
 
-- [ ] Панель выбора героя в `MainMenu` (3 карточки с портретами и характеристиками)
-- [ ] Клик → предзаполнить имя; кнопка старта требует карту + героя + имя
-- [ ] Портрет и характеристики героя в панели приключения
+- [x] Панель выбора героя в `MainMenu` (3 карточки с портретами и характеристиками)
+- [x] Клик → предзаполнить имя; кнопка старта требует карту + героя + имя
+- [x] Портрет и характеристики героя в панели приключения
 
 ### 10.5 Тесты
 
-- [ ] `load_heroes_parses`, `all_hero_ids_unique`
-- [ ] `attack_bonus_increases_damage`, `defense_bonus_reduces_damage`, `defense_never_below_one`
+- [x] `load_heroes_parses`, `all_hero_ids_unique`
+- [x] `attack_bonus_increases_damage`, `defense_bonus_reduces_damage`, `defense_never_below_one`
 
 **Критерий готовности:** разные герои дают разный начальный обзор и урон в бою.
 
 ---
 
-## Этап 11 — Прогрессия героя ⬜
+## Этап 11 — Прогресс героя ⬜
 
 - [ ] Опыт за победу в бою
-- [ ] Уровни героя (1–5)
-- [ ] 2–3 навыка на выбор при повышении уровня (атака, защита, логистика)
+- [ ] Уровни героя (нужна формула преобразования опыта в уровень с увеличением разницы для каждого уровня)
+- [ ] Рост навыков при повышении уровня (атака, защита, скорость, зрение)
 
 ---
 

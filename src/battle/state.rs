@@ -67,6 +67,8 @@ pub struct BattleState {
     pub turn_order: VecDeque<StackId>,
     pub current_stack_id: StackId,
     pub log: Vec<BattleEvent>,
+    pub attacker_attack_bonus: u32,
+    pub attacker_defense_bonus: u32,
 }
 
 #[allow(dead_code)]
@@ -76,6 +78,8 @@ impl BattleState {
     pub fn from_armies(
         attacker_stacks: &[crate::core::hero::UnitStack],
         defender_stacks: &[crate::core::hero::UnitStack],
+        attacker_attack_bonus: u32,
+        attacker_defense_bonus: u32,
     ) -> Self {
         let mut stacks: Vec<BattleStack> = Vec::new();
         let mut next_id = 0u32;
@@ -131,6 +135,8 @@ impl BattleState {
             turn_order,
             current_stack_id,
             log: Vec::new(),
+            attacker_attack_bonus,
+            attacker_defense_bonus,
         }
     }
 
@@ -158,7 +164,21 @@ impl BattleState {
             return vec![];
         }
 
-        let damage = attacker_count * attacker_dmg;
+        // Атакующий стек — прибавляем бонус героя к урону
+        // Если цель — атакующий — вычитаем защитный бонус
+        let raw_damage = attacker_count * attacker_dmg
+            + if attacker_side == Side::Attacker {
+                self.attacker_attack_bonus
+            } else {
+                0
+            };
+        let damage = if target_side == Side::Attacker {
+            raw_damage
+                .saturating_sub(self.attacker_defense_bonus)
+                .max(1)
+        } else {
+            raw_damage
+        };
         let Some(target) = self.stacks.iter_mut().find(|s| s.id == target_id) else {
             return vec![];
         };
@@ -300,6 +320,15 @@ mod tests {
     }
 
     fn make_battle(att: &[(UnitType, u32)], def: &[(UnitType, u32)]) -> BattleState {
+        make_battle_with_bonus(att, def, 0, 0)
+    }
+
+    fn make_battle_with_bonus(
+        att: &[(UnitType, u32)],
+        def: &[(UnitType, u32)],
+        atk_bonus: u32,
+        def_bonus: u32,
+    ) -> BattleState {
         let att_stacks: Vec<UnitStack> = att
             .iter()
             .map(|(ut, n)| UnitStack::new(ut.clone(), *n))
@@ -308,7 +337,7 @@ mod tests {
             .iter()
             .map(|(ut, n)| UnitStack::new(ut.clone(), *n))
             .collect();
-        BattleState::from_armies(&att_stacks, &def_stacks)
+        BattleState::from_armies(&att_stacks, &def_stacks, atk_bonus, def_bonus)
     }
 
     #[test]
@@ -376,6 +405,108 @@ mod tests {
                 Side::Defender
             ]
         );
+    }
+
+    #[test]
+    fn attack_bonus_increases_damage() {
+        // bonus=2, count=3, base=1 → урон=5
+        let weak_unit = UnitType {
+            name: "Weak".into(),
+            damage_per_unit: 1,
+            hp: 100,
+            cost: ResourceBag::gold(0),
+        };
+        let tank = UnitType {
+            name: "Tank".into(),
+            damage_per_unit: 0,
+            hp: 1000,
+            cost: ResourceBag::gold(0),
+        };
+        let mut b = make_battle_with_bonus(&[(weak_unit, 3)], &[(tank, 1)], 2, 0);
+        let def_id = b
+            .stacks
+            .iter()
+            .find(|s| s.side == Side::Defender)
+            .unwrap()
+            .id;
+        let events = b.attack(def_id);
+        let damage = events.iter().find_map(|e| {
+            if let BattleEvent::Attacked { damage, .. } = e {
+                Some(*damage)
+            } else {
+                None
+            }
+        });
+        assert_eq!(damage, Some(5), "3 units * 1 base + 2 bonus = 5 damage");
+    }
+
+    #[test]
+    fn defense_bonus_reduces_damage() {
+        // Защитник атакует атакующего; defense=3, raw=4 → урон max(1, 4-3)=1
+        let attacker_unit = UnitType {
+            name: "Att".into(),
+            damage_per_unit: 0,
+            hp: 1000,
+            cost: ResourceBag::gold(0),
+        };
+        let defender_unit = UnitType {
+            name: "Def".into(),
+            damage_per_unit: 4,
+            hp: 10,
+            cost: ResourceBag::gold(0),
+        };
+        let mut b = make_battle_with_bonus(&[(attacker_unit, 1)], &[(defender_unit, 1)], 0, 3);
+        // Сначала ход атакующего (пропускаем его, переходим к защитнику)
+        b.next_turn();
+        let att_id = b
+            .stacks
+            .iter()
+            .find(|s| s.side == Side::Attacker)
+            .unwrap()
+            .id;
+        let events = b.attack(att_id);
+        let damage = events.iter().find_map(|e| {
+            if let BattleEvent::Attacked { damage, .. } = e {
+                Some(*damage)
+            } else {
+                None
+            }
+        });
+        assert_eq!(damage, Some(1), "raw=4, defense=3 → max(1, 4-3)=1");
+    }
+
+    #[test]
+    fn defense_never_below_one() {
+        // defense > damage → урон = 1 (не 0)
+        let attacker_unit = UnitType {
+            name: "Att".into(),
+            damage_per_unit: 0,
+            hp: 1000,
+            cost: ResourceBag::gold(0),
+        };
+        let defender_unit = UnitType {
+            name: "Def".into(),
+            damage_per_unit: 2,
+            hp: 10,
+            cost: ResourceBag::gold(0),
+        };
+        let mut b = make_battle_with_bonus(&[(attacker_unit, 1)], &[(defender_unit, 1)], 0, 100);
+        b.next_turn();
+        let att_id = b
+            .stacks
+            .iter()
+            .find(|s| s.side == Side::Attacker)
+            .unwrap()
+            .id;
+        let events = b.attack(att_id);
+        let damage = events.iter().find_map(|e| {
+            if let BattleEvent::Attacked { damage, .. } = e {
+                Some(*damage)
+            } else {
+                None
+            }
+        });
+        assert_eq!(damage, Some(1), "defense > damage → урон минимум 1");
     }
 
     #[test]

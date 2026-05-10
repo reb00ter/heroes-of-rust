@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="80" viewBox="0 0 64 80">
+  <!-- Фон -->
+  <rect width="64" height="80" rx="8" fill="#1a2a4a"/>
+  <!-- Лицо -->
+  <ellipse cx="32" cy="28" rx="14" ry="16" fill="#e8c89a"/>
+  <!-- Волосы -->
+  <ellipse cx="32" cy="16" rx="14" ry="8" fill="#5a3010"/>
+  <!-- Щит — синий -->
+  <path d="M20 50 L32 45 L44 50 L44 70 L32 76 L20 70 Z" fill="#2255aa" stroke="#88aaff" stroke-width="2"/>
+  <!-- Крест на щите -->
+  <line x1="32" y1="48" x2="32" y2="74" stroke="#88aaff" stroke-width="2"/>
+  <line x1="22" y1="60" x2="42" y2="60" stroke="#88aaff" stroke-width="2"/>
+  <!-- Плечи / доспех -->
+  <rect x="14" y="42" width="10" height="8" rx="3" fill="#4477cc"/>
+  <rect x="40" y="42" width="10" height="8" rx="3" fill="#4477cc"/>
+</svg>

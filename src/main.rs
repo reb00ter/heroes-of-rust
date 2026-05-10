@@ -33,6 +33,10 @@ pub enum GameScreen {
 pub struct GameStartConfig {
     pub map_path: String,
     pub hero_name: String,
+    pub hero_attack: u32,
+    pub hero_defense: u32,
+    pub hero_sight: u32,
+    pub hero_portrait: String,
 }
 
 /// Данные боя, передаваемые из Adventure в Battle при переходе состояния.

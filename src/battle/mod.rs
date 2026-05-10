@@ -62,7 +62,16 @@ fn setup_battle(
         return;
     }
 
-    let battle_state = BattleState::from_armies(attacker_stacks, &pending.defender_army.0);
+    let (hero_attack, hero_defense) = gs
+        .get_hero(pending.attacker_hero_id)
+        .map_or((0, 0), |h| (h.attack, h.defense));
+
+    let battle_state = BattleState::from_armies(
+        attacker_stacks,
+        &pending.defender_army.0,
+        hero_attack,
+        hero_defense,
+    );
 
     info!(
         "[BATTLE] Setup: {} attacker stacks vs {} defender stacks.",

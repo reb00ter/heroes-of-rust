@@ -5,8 +5,24 @@ fn main() {
     render_svg(
         "assets/sprites/src/gold_pile.svg",
         "assets/sprites/gold_pile.png",
-        2.0, // масштаб: 64×64 SVG → 128×128 PNG (Bevy сам масштабирует под тайл)
+        2.0,
     );
+    for (svg, png) in [
+        (
+            "assets/sprites/heroes/src/aldric.svg",
+            "assets/sprites/heroes/aldric.png",
+        ),
+        (
+            "assets/sprites/heroes/src/valeria.svg",
+            "assets/sprites/heroes/valeria.png",
+        ),
+        (
+            "assets/sprites/heroes/src/gorm.svg",
+            "assets/sprites/heroes/gorm.png",
+        ),
+    ] {
+        render_svg(svg, png, 2.0);
+    }
 }
 
 fn render_svg(svg_path: &str, out_path: &str, scale: f32) {

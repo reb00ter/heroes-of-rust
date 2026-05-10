@@ -100,6 +100,14 @@ pub struct DayText;
 #[derive(Component)]
 pub struct HintText;
 
+/// Портрет героя в UI приключения.
+#[derive(Component)]
+pub struct HeroPortraitUI;
+
+/// Строка характеристик героя в UI приключения.
+#[derive(Component)]
+pub struct HeroStatsText;
+
 // ---------------------------------------------------------------------------
 // Spawn-хелперы
 // ---------------------------------------------------------------------------
@@ -170,8 +178,12 @@ fn load_map_from_config(
     day_q: Query<Entity, With<DayText>>,
     army_q: Query<Entity, With<ArmyText>>,
     hint_q: Query<Entity, With<HintText>>,
+    portrait_q: Query<Entity, With<HeroPortraitUI>>,
+    stats_q: Query<Entity, With<HeroStatsText>>,
     asset_server: Res<AssetServer>,
 ) {
+    use crate::core::map::update_visibility;
+
     let Some(config) = config else {
         return;
     };
@@ -179,6 +191,15 @@ fn load_map_from_config(
     let mut gs = crate::data::load_map(&config.map_path, "assets/data/units.ron");
     if let Some(hero) = gs.heroes.first_mut() {
         hero.name.clone_from(&config.hero_name);
+        hero.attack = config.hero_attack;
+        hero.defense = config.hero_defense;
+        hero.sight_range = config.hero_sight;
+    }
+    // Открыть стартовую область видимости с учётом sight_range из ростера
+    if let Some(hero) = gs.heroes.first() {
+        let pos = hero.position;
+        let range = hero.sight_range;
+        update_visibility(&mut gs.map, pos, range);
     }
     game_state.0 = gs;
 
@@ -210,11 +231,24 @@ fn load_map_from_config(
     for e in &hint_q {
         commands.entity(e).despawn();
     }
+    for e in &portrait_q {
+        commands.entity(e).despawn();
+    }
+    for e in &stats_q {
+        commands.entity(e).despawn();
+    }
 
     // Заспавнить новые тайлы и UI
     render::respawn_map_objects(&mut commands, &game_state.0);
     let font: Handle<Font> = asset_server.load("fonts/Roboto-Regular.ttf");
-    render::spawn_adventure_ui(&mut commands, &game_state.0, font);
+    let portrait_path = config.hero_portrait.clone();
+    render::spawn_adventure_ui(
+        &mut commands,
+        &game_state.0,
+        font,
+        &portrait_path,
+        &asset_server,
+    );
 
     commands.remove_resource::<crate::GameStartConfig>();
 }

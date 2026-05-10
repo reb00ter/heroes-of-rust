@@ -1,0 +1,5 @@
+[
+    (id: "aldric",  name: "Альдрик", attack: 2, defense: 1, sight_range: 4, portrait: "heroes/aldric"),
+    (id: "valeria", name: "Валерия", attack: 1, defense: 0, sight_range: 6, portrait: "heroes/valeria"),
+    (id: "gorm",    name: "Горм",    attack: 3, defense: 0, sight_range: 3, portrait: "heroes/gorm"),
+]

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="80" viewBox="0 0 64 80">
+  <!-- Фон -->
+  <rect width="64" height="80" rx="8" fill="#3a1a1a"/>
+  <!-- Лицо широкое -->
+  <ellipse cx="32" cy="30" rx="16" ry="17" fill="#c8a070"/>
+  <!-- Борода -->
+  <ellipse cx="32" cy="44" rx="12" ry="8" fill="#3a1a00"/>
+  <!-- Волосы короткие -->
+  <rect x="16" y="14" width="32" height="10" rx="5" fill="#3a1a00"/>
+  <!-- Кулак красный -->
+  <rect x="20" y="52" width="24" height="18" rx="5" fill="#cc2222"/>
+  <!-- Пальцы -->
+  <rect x="20" y="50" width="5" height="7" rx="2" fill="#cc2222"/>
+  <rect x="27" y="49" width="5" height="7" rx="2" fill="#cc2222"/>
+  <rect x="34" y="49" width="5" height="7" rx="2" fill="#cc2222"/>
+  <rect x="41" y="50" width="5" height="7" rx="2" fill="#cc2222"/>
+  <!-- Плечи массивные -->
+  <rect x="10" y="42" width="12" height="10" rx="3" fill="#661111"/>
+  <rect x="42" y="42" width="12" height="10" rx="3" fill="#661111"/>
+</svg>
