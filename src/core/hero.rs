@@ -110,6 +110,7 @@ pub struct Hero {
     pub army: Army,
     pub movement_points: u32,
     pub movement_points_max: u32,
+    pub sight_range: u32,
 }
 
 impl Hero {

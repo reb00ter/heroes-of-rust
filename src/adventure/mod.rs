@@ -61,6 +61,12 @@ pub struct TownMarker(#[allow(dead_code)] pub TownId);
 #[derive(Component)]
 pub struct NeutralArmyMarker(pub Position);
 
+/// Оверлей тумана войны над одним тайлом (Z=2).
+#[derive(Component)]
+pub struct FogOverlay {
+    pub pos: Position,
+}
+
 // ---------------------------------------------------------------------------
 // Баннер результата боя
 // ---------------------------------------------------------------------------
@@ -153,6 +159,7 @@ fn load_map_from_config(
     mut game_state: ResMut<GameStateResource>,
     tile_q: Query<Entity, With<TileMarker>>,
     town_q: Query<Entity, With<TownMarker>>,
+    fog_q: Query<Entity, With<FogOverlay>>,
     mp_q: Query<Entity, With<MovementPointsText>>,
     gold_q: Query<Entity, With<GoldText>>,
     day_q: Query<Entity, With<DayText>>,
@@ -175,6 +182,9 @@ fn load_map_from_config(
         commands.entity(e).despawn();
     }
     for e in &town_q {
+        commands.entity(e).despawn();
+    }
+    for e in &fog_q {
         commands.entity(e).despawn();
     }
     for e in &mp_q {
@@ -266,6 +276,7 @@ impl Plugin for AdventurePlugin {
                     input::handle_end_turn,
                     input::update_hover_highlight,
                     sync::sync_map_objects,
+                    sync::sync_fog_overlay,
                     sync::update_available_moves,
                     sync::update_movement_ui,
                     sync::update_resource_ui,

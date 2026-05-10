@@ -5,6 +5,17 @@ use crate::core::player::TownId;
 use crate::core::resources::ResourceBag;
 
 // ---------------------------------------------------------------------------
+// VisibilityState
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VisibilityState {
+    Unexplored,
+    Visited,
+    Visible,
+}
+
+// ---------------------------------------------------------------------------
 // Position
 // ---------------------------------------------------------------------------
 
@@ -72,18 +83,22 @@ pub struct AdventureMap {
     pub width: u32,
     pub height: u32,
     pub tiles: Vec<Tile>,
+    pub visibility: Vec<VisibilityState>,
 }
 
 impl AdventureMap {
     /// Создаёт карту размером `width × height`, заполненную `Ground`-тайлами.
+    /// Все тайлы изначально `Unexplored`.
     #[must_use]
     pub fn new(width: u32, height: u32) -> Self {
         let size = (width * height) as usize;
         let tiles = (0..size).map(|_| Tile::ground()).collect();
+        let visibility = vec![VisibilityState::Unexplored; size];
         Self {
             width,
             height,
             tiles,
+            visibility,
         }
     }
 
@@ -117,6 +132,17 @@ impl AdventureMap {
         }
     }
 
+    #[must_use]
+    pub fn get_visibility(&self, pos: Position) -> Option<VisibilityState> {
+        self.idx(pos).map(|i| self.visibility[i])
+    }
+
+    pub fn set_visibility(&mut self, pos: Position, state: VisibilityState) {
+        if let Some(i) = self.idx(pos) {
+            self.visibility[i] = state;
+        }
+    }
+
     /// Возвращает до 4 смежных клеток (вверх, вниз, влево, вправо) в пределах карты.
     #[must_use]
     pub fn neighbors(&self, pos: Position) -> Vec<Position> {
@@ -129,6 +155,33 @@ impl AdventureMap {
         .into_iter()
         .filter(|p| self.idx(*p).is_some())
         .collect()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Логика видимости
+// ---------------------------------------------------------------------------
+
+/// Обновляет туман войны после перемещения героя.
+///
+/// 1. Все `Visible` → `Visited` (герой покинул ту зону).
+/// 2. Все клетки с расстоянием Чебышёва ≤ `sight_range` → `Visible`.
+pub fn update_visibility(map: &mut AdventureMap, hero_pos: Position, sight_range: u32) {
+    let size = (map.width * map.height) as usize;
+    // Шаг 1: сбросить текущую видимость в Visited
+    for v in &mut map.visibility[..size] {
+        if *v == VisibilityState::Visible {
+            *v = VisibilityState::Visited;
+        }
+    }
+    // Шаг 2: открыть квадрат вокруг героя
+    #[allow(clippy::cast_possible_wrap)]
+    let r = sight_range as i32;
+    for dy in -r..=r {
+        for dx in -r..=r {
+            let pos = Position::new(hero_pos.x + dx, hero_pos.y + dy);
+            map.set_visibility(pos, VisibilityState::Visible);
+        }
     }
 }
 
@@ -175,5 +228,72 @@ mod tests {
         let map = AdventureMap::new(3, 3);
         let n = map.neighbors(Position::new(1, 1));
         assert_eq!(n.len(), 4);
+    }
+
+    // --- Туман войны ---
+
+    #[test]
+    fn initial_fog_all_unexplored() {
+        let map = AdventureMap::new(5, 5);
+        for y in 0..5_i32 {
+            for x in 0..5_i32 {
+                assert_eq!(
+                    map.get_visibility(Position::new(x, y)),
+                    Some(VisibilityState::Unexplored)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn update_visibility_reveals_area() {
+        let mut map = AdventureMap::new(10, 10);
+        update_visibility(&mut map, Position::new(5, 5), 2);
+        // Все клетки в радиусе 2 должны быть Visible
+        for dy in -2_i32..=2 {
+            for dx in -2_i32..=2 {
+                assert_eq!(
+                    map.get_visibility(Position::new(5 + dx, 5 + dy)),
+                    Some(VisibilityState::Visible)
+                );
+            }
+        }
+        // Клетка за пределами радиуса — Unexplored
+        assert_eq!(
+            map.get_visibility(Position::new(5 + 3, 5)),
+            Some(VisibilityState::Unexplored)
+        );
+    }
+
+    #[test]
+    fn moving_hero_marks_old_area_visited() {
+        let mut map = AdventureMap::new(20, 20);
+        update_visibility(&mut map, Position::new(2, 2), 2);
+        // Переместить героя далеко
+        update_visibility(&mut map, Position::new(15, 15), 2);
+        // Старая зона — Visited (была Visible)
+        assert_eq!(
+            map.get_visibility(Position::new(2, 2)),
+            Some(VisibilityState::Visited)
+        );
+        // Новая зона — Visible
+        assert_eq!(
+            map.get_visibility(Position::new(15, 15)),
+            Some(VisibilityState::Visible)
+        );
+    }
+
+    #[test]
+    fn visited_tiles_not_reset() {
+        let mut map = AdventureMap::new(20, 20);
+        update_visibility(&mut map, Position::new(2, 2), 2);
+        // Переместить дважды
+        update_visibility(&mut map, Position::new(10, 10), 2);
+        update_visibility(&mut map, Position::new(15, 15), 2);
+        // Первая зона осталась Visited — не сбросилась в Unexplored
+        assert_eq!(
+            map.get_visibility(Position::new(2, 2)),
+            Some(VisibilityState::Visited)
+        );
     }
 }

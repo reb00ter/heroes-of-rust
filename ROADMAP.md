@@ -491,39 +491,39 @@
 
 ---
 
-## Этап 9 — Туман войны ⬜
+## Этап 9 — Туман войны ✅
 
 **Цель:** скрыть неисследованную карту; герой открывает область вокруг себя по мере движения.
 
 ### 9.1 Модель данных
 
-- [ ] `VisibilityState`: `Unexplored`, `Visited`, `Visible`
-- [ ] `AdventureMap::visibility: Vec<VisibilityState>` (параллельный массив)
-- [ ] `update_visibility(map, hero_pos, sight_range)` — квадратный радиус Чебышёва
+- [x] `VisibilityState`: `Unexplored`, `Visited`, `Visible`
+- [x] `AdventureMap::visibility: Vec<VisibilityState>` (параллельный массив)
+- [x] `update_visibility(map, hero_pos, sight_range)` — квадратный радиус Чебышёва
 
 ### 9.2 Герой
 
-- [ ] Поле `Hero::sight_range: u32` (default 4)
-- [ ] `HeroDef::sight_range` с `#[serde(default)]` в формате карты
+- [x] Поле `Hero::sight_range: u32` (default 4)
+- [x] `HeroDef::sight_range` с `#[serde(default)]` в формате карты
 
 ### 9.3 Рендер
 
-- [ ] Компонент `FogOverlay { pos }` — один спрайт на тайл, Z=2
-- [ ] `Unexplored` → чёрный непрозрачный; `Visited` → тёмный (α=0.55); `Visible` → прозрачный
-- [ ] Система `sync_fog_overlay` обновляет цвет оверлея при каждом ходе
+- [x] Компонент `FogOverlay { pos }` — один спрайт на тайл, Z=2
+- [x] `Unexplored` → чёрный непрозрачный; `Visited` → тёмный (α=0.55); `Visible` → прозрачный
+- [x] Система `sync_fog_overlay` обновляет цвет оверлея при каждом ходе
 
 ### 9.4 Интеграция
 
-- [ ] `load_map` вызывает `update_visibility` для стартовой позиции героя
-- [ ] `input.rs`: `update_visibility` после каждого `MoveHero`
+- [x] `load_map` вызывает `update_visibility` для стартовой позиции героя
+- [x] `input.rs`: `update_visibility` после каждого `MoveHero`
 
 ### 9.5 Тесты
 
-- [ ] `initial_fog_all_unexplored`
-- [ ] `update_visibility_reveals_area`
-- [ ] `moving_hero_marks_old_area_visited`
-- [ ] `visited_tiles_not_reset`
-- [ ] `load_map_reveals_hero_start`
+- [x] `initial_fog_all_unexplored`
+- [x] `update_visibility_reveals_area`
+- [x] `moving_hero_marks_old_area_visited`
+- [x] `visited_tiles_not_reset`
+- [x] `load_map_reveals_hero_start`
 
 **Критерий готовности:** карта при старте покрыта туманом; герой рассеивает его движением; посещённые тайлы остаются тёмными.
 

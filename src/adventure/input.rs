@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::PendingBattle;
 use crate::core::commands::{CommandError, GameCommand, GameEvent};
 use crate::core::hero::HeroId;
-use crate::core::map::{MapObject, Position};
+use crate::core::map::{MapObject, Position, update_visibility};
 use crate::core::player::TownId;
 
 use super::{GameStateResource, HoverHighlight, world_to_grid};
@@ -214,6 +214,13 @@ fn apply_move(
 
     match gs.apply(GameCommand::MoveHero { hero_id, target }) {
         Ok(events) => {
+            // Обновить туман войны после хода
+            if let Some(hero) = gs.get_hero(hero_id) {
+                let pos = hero.position;
+                let range = hero.sight_range;
+                update_visibility(&mut gs.map, pos, range);
+            }
+
             // Бой?
             for event in &events {
                 if let GameEvent::BattleStarted {

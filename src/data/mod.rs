@@ -69,6 +69,10 @@ pub struct NeutralArmyDef {
     pub units: Vec<StackRef>,
 }
 
+fn default_sight_range() -> u32 {
+    4
+}
+
 #[derive(serde::Deserialize)]
 pub struct HeroDef {
     pub pos: (i32, i32),
@@ -76,6 +80,8 @@ pub struct HeroDef {
     pub movement_points: u32,
     pub army: Vec<StackRef>,
     pub starting_gold: u32,
+    #[serde(default = "default_sight_range")]
+    pub sight_range: u32,
 }
 
 // ---------------------------------------------------------------------------
@@ -107,12 +113,20 @@ pub fn load_units(path: &str) -> Vec<UnitTypeDef> {
 
 /// Загружает карту из RON-файла и возвращает готовый `GameState`.
 pub fn load_map(map_path: &str, units_path: &str) -> GameState {
+    use crate::core::map::update_visibility;
     let units = load_units(units_path);
     let content = std::fs::read_to_string(map_path)
         .unwrap_or_else(|e| panic!("Failed to read map file '{map_path}': {e}"));
     let def: MapDefinition = ron::from_str(&content)
         .unwrap_or_else(|e| panic!("Failed to parse map file '{map_path}': {e}"));
-    map_def_to_game_state(&def, &units)
+    let mut gs = map_def_to_game_state(&def, &units);
+    // Открыть стартовую область видимости для первого героя
+    if let Some(hero) = gs.heroes.first() {
+        let pos = hero.position;
+        let range = hero.sight_range;
+        update_visibility(&mut gs.map, pos, range);
+    }
+    gs
 }
 
 /// Сканирует директорию, валидирует каждый `*.ron` файл.
@@ -335,6 +349,7 @@ fn map_def_to_game_state(def: &MapDefinition, units: &[UnitTypeDef]) -> GameStat
         army: Army::new(),
         movement_points: hero_def.movement_points,
         movement_points_max: hero_def.movement_points,
+        sight_range: hero_def.sight_range,
     };
     for stack_ref in &hero_def.army {
         let _ = hero.army.add_stack(UnitStack::new(
@@ -562,5 +577,21 @@ mod tests {
         let result = validate_map_content(ron, "test", &units);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("impassable"));
+    }
+
+    #[test]
+    fn load_map_reveals_hero_start() {
+        use crate::core::map::VisibilityState;
+        let gs = load_map("assets/maps/default.ron", "assets/data/units.ron");
+        // Герой стартует на (1,1) с sight_range=4 → тайл (1,1) должен быть Visible
+        assert_eq!(
+            gs.map.get_visibility(Position::new(1, 1)),
+            Some(VisibilityState::Visible)
+        );
+        // Тайл за пределами начального обзора должен остаться Unexplored
+        assert_eq!(
+            gs.map.get_visibility(Position::new(19, 14)),
+            Some(VisibilityState::Unexplored)
+        );
     }
 }

@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use bevy::prelude::*;
 
 use crate::core::hero::HeroId;
-use crate::core::map::{MapObject, Position};
+use crate::core::map::{MapObject, Position, VisibilityState};
 
 use super::{
-    ArmyText, DayText, GameStateResource, GoldText, HeroMarker, MovementHighlight,
+    ArmyText, DayText, FogOverlay, GameStateResource, GoldText, HeroMarker, MovementHighlight,
     MovementPointsText, NeutralArmyMarker, ResourcePileMarker, TILE_SIZE, grid_to_world,
     spawn_gold_pile, spawn_hero, spawn_neutral_army,
 };
@@ -49,7 +49,7 @@ pub fn update_available_moves(
                     custom_size: Some(Vec2::splat(TILE_SIZE - 1.0)),
                     ..default()
                 },
-                Transform::from_xyz(world.x, world.y, 2.0),
+                Transform::from_xyz(world.x, world.y, 3.0),
                 MovementHighlight,
             ));
         }
@@ -147,6 +147,34 @@ pub fn sync_map_objects(
         if !seen_ids.contains(&hero.id) {
             spawn_hero(&mut commands, hero, map_w, map_h);
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Синхронизация тумана войны
+// ---------------------------------------------------------------------------
+
+/// Обновляет цвет оверлеев тумана по текущему `visibility[]` в `GameState`.
+/// Запускается каждый кадр после `sync_map_objects`.
+#[allow(clippy::needless_pass_by_value)]
+pub fn sync_fog_overlay(
+    game_state: Res<GameStateResource>,
+    mut fog_q: Query<(&FogOverlay, &mut Sprite)>,
+) {
+    if !game_state.is_changed() {
+        return;
+    }
+    let gs = &game_state.0;
+    for (fog, mut sprite) in &mut fog_q {
+        let vis = gs
+            .map
+            .get_visibility(fog.pos)
+            .unwrap_or(VisibilityState::Unexplored);
+        sprite.color = match vis {
+            VisibilityState::Unexplored => Color::srgba(0.0, 0.0, 0.0, 1.0),
+            VisibilityState::Visited => Color::srgba(0.0, 0.0, 0.0, 0.55),
+            VisibilityState::Visible => Color::srgba(0.0, 0.0, 0.0, 0.0),
+        };
     }
 }
 

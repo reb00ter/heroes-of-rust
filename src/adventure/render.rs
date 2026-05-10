@@ -3,9 +3,11 @@ use bevy::prelude::*;
 use crate::core::map::TileKind;
 use crate::core::state::GameState;
 
+use crate::core::map::VisibilityState;
+
 use super::{
-    ArmyText, BannerKind, DayText, GoldText, HintText, HoverHighlight, MovementPointsText,
-    ShowBanner, TILE_SIZE, TileMarker, TownMarker, grid_to_world,
+    ArmyText, BannerKind, DayText, FogOverlay, GoldText, HintText, HoverHighlight,
+    MovementPointsText, ShowBanner, TILE_SIZE, TileMarker, TownMarker, grid_to_world,
 };
 
 // ---------------------------------------------------------------------------
@@ -16,6 +18,14 @@ const COLOR_GROUND: Color = Color::srgb(0.20, 0.55, 0.20);
 const COLOR_OBSTACLE: Color = Color::srgb(0.45, 0.45, 0.45);
 const COLOR_WATER: Color = Color::srgb(0.15, 0.35, 0.80);
 const COLOR_HOVER: Color = Color::srgba(1.0, 1.0, 1.0, 0.30);
+
+fn fog_color(state: VisibilityState) -> Color {
+    match state {
+        VisibilityState::Unexplored => Color::srgba(0.0, 0.0, 0.0, 1.0),
+        VisibilityState::Visited => Color::srgba(0.0, 0.0, 0.0, 0.55),
+        VisibilityState::Visible => Color::srgba(0.0, 0.0, 0.0, 0.0),
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Стартовое состояние игры
@@ -81,6 +91,21 @@ pub(super) fn respawn_map_objects(commands: &mut Commands, gs: &GameState) {
                 },
                 Transform::from_xyz(world.x, world.y, 0.0),
                 TileMarker { pos },
+            ));
+
+            // Туман войны (Z=2)
+            let vis = gs
+                .map
+                .get_visibility(pos)
+                .unwrap_or(VisibilityState::Unexplored);
+            commands.spawn((
+                Sprite {
+                    color: fog_color(vis),
+                    custom_size: Some(Vec2::splat(TILE_SIZE - 1.0)),
+                    ..default()
+                },
+                Transform::from_xyz(world.x, world.y, 2.0),
+                FogOverlay { pos },
             ));
         }
     }
