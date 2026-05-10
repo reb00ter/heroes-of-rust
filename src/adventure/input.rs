@@ -13,7 +13,7 @@ use super::{GameStateResource, HoverHighlight, world_to_grid};
 // ---------------------------------------------------------------------------
 
 /// Обрабатывает WASD / стрелки: перемещает героя на одну клетку за нажатие.
-#[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value)] // Res<T> — стандартный SystemParam Bevy
 pub fn keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut game_state: ResMut<GameStateResource>,
@@ -62,7 +62,7 @@ pub fn keyboard_input(
 // ---------------------------------------------------------------------------
 
 /// Обрабатывает левый клик: вычисляет позицию в сетке и отправляет команду движения.
-#[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value)] // Res<T> — стандартный SystemParam Bevy
 pub fn mouse_click_input(
     mouse_button: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
@@ -213,6 +213,7 @@ fn apply_move(
 
     match gs.apply(GameCommand::MoveHero { hero_id, target }) {
         Ok(events) => {
+            // Бой?
             for event in &events {
                 if let GameEvent::BattleStarted {
                     attacker,
@@ -248,10 +249,12 @@ fn apply_move(
                 }
             }
 
+            // Вошёл ли герой в город?
             if let Some(MapObject::Town(id)) = gs.map.get(target).and_then(|t| t.object.as_ref()) {
                 return MoveOutcome::Town(*id);
             }
 
+            // Автосбор ресурса
             if matches!(
                 gs.map.get(target).and_then(|t| t.object.as_ref()),
                 Some(MapObject::ResourcePile(_))
