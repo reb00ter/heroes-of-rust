@@ -6,18 +6,14 @@ use crate::core::hero::HeroId;
 use crate::core::map::{MapObject, Position};
 use crate::core::player::TownId;
 
-use super::{GameStateResource, HoverHighlight, MAP_HEIGHT, MAP_WIDTH, world_to_grid};
-
-// Размеры карты в i32 для сравнений (16 и 12 — точно в диапазоне i32)
-const MAP_W: i32 = MAP_WIDTH.cast_signed();
-const MAP_H: i32 = MAP_HEIGHT.cast_signed();
+use super::{GameStateResource, HoverHighlight, world_to_grid};
 
 // ---------------------------------------------------------------------------
 // Управление с клавиатуры
 // ---------------------------------------------------------------------------
 
 /// Обрабатывает WASD / стрелки: перемещает героя на одну клетку за нажатие.
-#[allow(clippy::needless_pass_by_value)] // Res<T> — стандартный SystemParam Bevy
+#[allow(clippy::needless_pass_by_value)]
 pub fn keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut game_state: ResMut<GameStateResource>,
@@ -66,7 +62,7 @@ pub fn keyboard_input(
 // ---------------------------------------------------------------------------
 
 /// Обрабатывает левый клик: вычисляет позицию в сетке и отправляет команду движения.
-#[allow(clippy::needless_pass_by_value)] // Res<T> — стандартный SystemParam Bevy
+#[allow(clippy::needless_pass_by_value)]
 pub fn mouse_click_input(
     mouse_button: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
@@ -94,10 +90,15 @@ pub fn mouse_click_input(
         return;
     };
 
-    let grid_pos = world_to_grid(world_pos);
+    let map_w = game_state.0.map.width;
+    let map_h = game_state.0.map.height;
+    let grid_pos = world_to_grid(world_pos, map_w, map_h);
 
-    // Проверяем что клик в пределах карты
-    if grid_pos.x < 0 || grid_pos.y < 0 || grid_pos.x >= MAP_W || grid_pos.y >= MAP_H {
+    if grid_pos.x < 0
+        || grid_pos.y < 0
+        || grid_pos.x >= map_w.cast_signed()
+        || grid_pos.y >= map_h.cast_signed()
+    {
         return;
     }
 
@@ -123,10 +124,12 @@ pub fn mouse_click_input(
 // ---------------------------------------------------------------------------
 
 /// Перемещает спрайт hover-подсветки к тайлу под курсором мыши.
+#[allow(clippy::needless_pass_by_value)]
 pub fn update_hover_highlight(
     windows: Query<&Window>,
     camera_q: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
     mut hover_q: Query<(&mut Transform, &mut Visibility), With<HoverHighlight>>,
+    game_state: Res<GameStateResource>,
 ) {
     let Ok(window) = windows.single() else {
         return;
@@ -138,13 +141,20 @@ pub fn update_hover_highlight(
         return;
     };
 
+    let map_w = game_state.0.map.width;
+    let map_h = game_state.0.map.height;
+
     if let Some(cursor_pos) = window.cursor_position()
         && let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos)
     {
-        let grid_pos = world_to_grid(world_pos);
+        let grid_pos = world_to_grid(world_pos, map_w, map_h);
 
-        if grid_pos.x >= 0 && grid_pos.y >= 0 && grid_pos.x < MAP_W && grid_pos.y < MAP_H {
-            let snap = super::grid_to_world(grid_pos);
+        if grid_pos.x >= 0
+            && grid_pos.y >= 0
+            && grid_pos.x < map_w.cast_signed()
+            && grid_pos.y < map_h.cast_signed()
+        {
+            let snap = super::grid_to_world(grid_pos, map_w, map_h);
             hover_transform.translation.x = snap.x;
             hover_transform.translation.y = snap.y;
             *hover_visibility = Visibility::Visible;
@@ -154,10 +164,6 @@ pub fn update_hover_highlight(
 
     *hover_visibility = Visibility::Hidden;
 }
-
-// ---------------------------------------------------------------------------
-// Вспомогательные функции
-// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Завершение хода
@@ -178,6 +184,10 @@ pub fn handle_end_turn(
         warn!("[ADVENTURE] EndTurn command failed: {:?}", e);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Вспомогательные функции
+// ---------------------------------------------------------------------------
 
 fn get_active_hero_id(gs: &crate::core::state::GameState) -> Option<HeroId> {
     let player = gs.get_player(gs.active_player_id)?;
@@ -203,14 +213,12 @@ fn apply_move(
 
     match gs.apply(GameCommand::MoveHero { hero_id, target }) {
         Ok(events) => {
-            // Бой?
             for event in &events {
                 if let GameEvent::BattleStarted {
                     attacker,
                     defender_pos,
                 } = event
                 {
-                    // Не начинать бой без армии — герой должен сначала нанять войска
                     let army_empty = gs.get_hero(*attacker).is_none_or(|h| h.army.is_empty());
                     if army_empty {
                         info!(
@@ -240,12 +248,10 @@ fn apply_move(
                 }
             }
 
-            // Вошёл ли герой в город?
             if let Some(MapObject::Town(id)) = gs.map.get(target).and_then(|t| t.object.as_ref()) {
                 return MoveOutcome::Town(*id);
             }
 
-            // Автосбор ресурса
             if matches!(
                 gs.map.get(target).and_then(|t| t.object.as_ref()),
                 Some(MapObject::ResourcePile(_))
