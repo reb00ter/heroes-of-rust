@@ -26,7 +26,7 @@ pub struct UnitTypeDef {
 // ---------------------------------------------------------------------------
 
 /// Ссылка на существо в карте — только ASCII id и количество.
-#[derive(serde::Deserialize, Clone)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub struct StackRef {
     pub id: String,
     pub count: u32,
@@ -98,6 +98,57 @@ pub fn load_heroes(path: &str) -> Vec<HeroRosterDef> {
     let content = std::fs::read_to_string(path)
         .unwrap_or_else(|e| panic!("Failed to read heroes file '{path}': {e}"));
     ron::from_str(&content).unwrap_or_else(|e| panic!("Failed to parse heroes file '{path}': {e}"))
+}
+
+// ---------------------------------------------------------------------------
+// Фракции
+// ---------------------------------------------------------------------------
+
+/// Описание героя фракции — статы и портрет.
+#[derive(serde::Deserialize, Clone, Debug)]
+#[allow(dead_code)] // используется в шагах 4 и 6 этапа 11
+pub struct FactionHeroDef {
+    pub id: String,
+    pub name: String,
+    pub attack: u32,
+    pub defense: u32,
+    pub sight_range: u32,
+    pub portrait: String,
+}
+
+/// Описание юнита фракции — характеристики и доступность найма.
+#[derive(serde::Deserialize, Clone, Debug)]
+#[allow(dead_code)] // поля используются в шагах 4–6 этапа 11
+pub struct FactionUnitDef {
+    pub id: String,
+    pub name: String,
+    pub tier: u32,
+    pub damage: u32,
+    pub hp: u32,
+    pub cost: u32,
+    pub daily_growth: u32,
+    #[serde(default)]
+    pub ranged: bool,
+}
+
+/// Описание фракции — герой, ростер юнитов и стартовая армия.
+#[derive(serde::Deserialize, Clone, Debug)]
+#[allow(dead_code)] // поля используются в шагах 4 и 6 этапа 11
+pub struct FactionDef {
+    pub id: String,
+    pub name: String,
+    pub hero: FactionHeroDef,
+    pub units: Vec<FactionUnitDef>,
+    pub starting_army: Vec<StackRef>,
+}
+
+/// Читает `assets/data/factions.ron` и возвращает список фракций.
+#[allow(dead_code)] // вызывается в шагах 4 и 6 этапа 11
+pub fn load_factions(path: &str) -> Vec<FactionDef> {
+    let content = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("Failed to read factions file '{path}': {e}"));
+    ron::from_str(&content)
+        .unwrap_or_else(|e| panic!("Failed to parse factions file '{path}': {e}"))
 }
 
 // ---------------------------------------------------------------------------
@@ -592,6 +643,59 @@ mod tests {
         let result = validate_map_content(ron, "test", &units);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("out of bounds"));
+    }
+
+    // --- Тесты этапа 11: фракции ---
+
+    #[test]
+    fn load_factions_parses() {
+        let factions = load_factions("assets/data/factions.ron");
+        assert_eq!(factions.len(), 2);
+        let ids: std::collections::HashSet<&str> = factions.iter().map(|f| f.id.as_str()).collect();
+        assert!(ids.contains("japanese_village"));
+        assert!(ids.contains("diy_hq"));
+    }
+
+    #[test]
+    fn japanese_village_hero_stats() {
+        let factions = load_factions("assets/data/factions.ron");
+        let jv = factions
+            .iter()
+            .find(|f| f.id == "japanese_village")
+            .expect("japanese_village exists");
+        assert_eq!(jv.hero.name, "Наруто");
+        assert_eq!(jv.hero.attack, 2);
+        assert_eq!(jv.hero.defense, 1);
+        assert_eq!(jv.hero.sight_range, 5);
+    }
+
+    #[test]
+    fn diy_hq_starting_army() {
+        let factions = load_factions("assets/data/factions.ron");
+        let diy = factions
+            .iter()
+            .find(|f| f.id == "diy_hq")
+            .expect("diy_hq exists");
+        assert_eq!(diy.starting_army.len(), 1);
+        assert_eq!(diy.starting_army[0].id, "fist_boy");
+        assert_eq!(diy.starting_army[0].count, 5);
+    }
+
+    #[test]
+    fn faction_unit_ids_match_starting_army() {
+        let factions = load_factions("assets/data/factions.ron");
+        for faction in &factions {
+            let known: std::collections::HashSet<&str> =
+                faction.units.iter().map(|u| u.id.as_str()).collect();
+            for stack in &faction.starting_army {
+                assert!(
+                    known.contains(stack.id.as_str()),
+                    "starting_army id '{}' not in faction '{}' units roster",
+                    stack.id,
+                    faction.id,
+                );
+            }
+        }
     }
 
     #[test]
