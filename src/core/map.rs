@@ -165,7 +165,7 @@ impl AdventureMap {
 /// Обновляет туман войны после перемещения героя.
 ///
 /// 1. Все `Visible` → `Visited` (герой покинул ту зону).
-/// 2. Все клетки с расстоянием Чебышёва ≤ `sight_range` → `Visible`.
+/// 2. Все клетки с евклидовым расстоянием ≤ `sight_range` → `Visible`.
 pub fn update_visibility(map: &mut AdventureMap, hero_pos: Position, sight_range: u32) {
     let size = (map.width * map.height) as usize;
     // Шаг 1: сбросить текущую видимость в Visited
@@ -174,13 +174,17 @@ pub fn update_visibility(map: &mut AdventureMap, hero_pos: Position, sight_range
             *v = VisibilityState::Visited;
         }
     }
-    // Шаг 2: открыть квадрат вокруг героя
+    // Шаг 2: открыть круг вокруг героя (евклидово расстояние)
     #[allow(clippy::cast_possible_wrap)]
     let r = sight_range as i32;
+    let r2 = sight_range * sight_range;
     for dy in -r..=r {
         for dx in -r..=r {
-            let pos = Position::new(hero_pos.x + dx, hero_pos.y + dy);
-            map.set_visibility(pos, VisibilityState::Visible);
+            #[allow(clippy::cast_sign_loss)]
+            if (dx * dx + dy * dy) as u32 <= r2 {
+                let pos = Position::new(hero_pos.x + dx, hero_pos.y + dy);
+                map.set_visibility(pos, VisibilityState::Visible);
+            }
         }
     }
 }
@@ -249,15 +253,24 @@ mod tests {
     fn update_visibility_reveals_area() {
         let mut map = AdventureMap::new(10, 10);
         update_visibility(&mut map, Position::new(5, 5), 2);
-        // Все клетки в радиусе 2 должны быть Visible
-        for dy in -2_i32..=2 {
-            for dx in -2_i32..=2 {
-                assert_eq!(
-                    map.get_visibility(Position::new(5 + dx, 5 + dy)),
-                    Some(VisibilityState::Visible)
-                );
-            }
-        }
+        // Клетки строго внутри круга r=2 — Visible
+        assert_eq!(
+            map.get_visibility(Position::new(5, 5)),
+            Some(VisibilityState::Visible)
+        );
+        assert_eq!(
+            map.get_visibility(Position::new(5 + 1, 5)),
+            Some(VisibilityState::Visible)
+        );
+        assert_eq!(
+            map.get_visibility(Position::new(5, 5 + 2)),
+            Some(VisibilityState::Visible)
+        );
+        // Угол квадрата (dx=2,dy=2) имеет расстояние ~2.83 > 2 — Unexplored
+        assert_eq!(
+            map.get_visibility(Position::new(5 + 2, 5 + 2)),
+            Some(VisibilityState::Unexplored)
+        );
         // Клетка за пределами радиуса — Unexplored
         assert_eq!(
             map.get_visibility(Position::new(5 + 3, 5)),
